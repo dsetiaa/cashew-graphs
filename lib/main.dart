@@ -1,11 +1,20 @@
+import 'package:cashew_graphs/database/tables.dart';
+import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
+import 'package:cashew_graphs/graphs/line_graphs/montly_line_graphs/montly_per_day.dart';
 import 'package:cashew_graphs/graphs/spending_line_graph.dart';
 import 'package:flutter/material.dart';
-
-import 'package:cashew_graphs/budget_copy/globals_i_think.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   // await loadCurrencyJSON();
-  runApp(const MyApp());
+  // runApp(const MyApp());
+  final database = FinanceDatabase();
+  runApp(
+  Provider<FinanceDatabase>.value(
+    value: database,  // Database instance is provided here
+    child: MyApp(),
+  ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -59,6 +68,43 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
+  late FinanceDatabase database;
+  // late Future<({List<Transaction> transactions, List<TransactionCategory> categories})> _dataFuture;
+
+  // Filter state
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  @override
+  void initState() {
+    super.initState();
+    database = Provider.of<FinanceDatabase>(context, listen: false);
+  }
+
+  void _applyDateFilter(DateTime? start, DateTime? end) {
+    setState(() {
+      _startDate = start;
+      _endDate = end;
+    });
+  }
+
+  Future<void> _selectDate(bool isStart) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+
+    if (date != null) {
+      if (isStart) {
+        _applyDateFilter(date, _endDate);
+      } else {
+        _applyDateFilter(_startDate, date);
+      }
+    }
+  }
+
 
 
   @override
@@ -82,7 +128,36 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        child: LineChartSample1()
+        // child: Expanded(
+            child:
+        //   child: FutureBuilder(
+        //     future: _dataFuture,
+        //     builder: (context, snapshot) {
+        //       if (snapshot.connectionState == ConnectionState.waiting) {
+        //         return Center(child: CircularProgressIndicator());
+        //       }
+        //
+        //       if (snapshot.hasError) {
+        //         return Center(child: Text('Error: ${snapshot.error}'));
+        //       }
+        //
+        //       // final transactions = snapshot.data ?? [];
+        //       final data = snapshot.data!;
+        //       final transactions = data.transactions;
+        //       final categories = data.categories;
+        //
+        //       print("printing transactions");
+        //       for(Transaction transaction in transactions) {
+        //         print("Transaction: AMT: ${transaction.amount}, DATE: ${transaction.dateCreated}");
+        //       }
+        //       print("fin");
+
+              // return
+    MonthlyPerDaySpending(database: database,)
+    // ;
+    //         },
+    //       ),
+    //     ),
       ),
     );
   }
