@@ -37,8 +37,8 @@ class _LineChartState extends State<_LineChart> {
     borderData: borderData,
     lineBarsData: widget.graphLines,
     minX: 0,
-    maxX: 14,
-    maxY: 6,
+    maxX: 30,
+    maxY: 40000,
     minY: 0,
   );
 
@@ -154,6 +154,7 @@ class _LineChartState extends State<_LineChart> {
       fontWeight: FontWeight.bold,
       fontSize: 14,
     );
+    return Container();
     String text;
     switch (value.toInt()) {
       case 1:
@@ -187,7 +188,7 @@ class _LineChartState extends State<_LineChart> {
 
   SideTitles leftTitles() => SideTitles(
     getTitlesWidget: leftTitleWidgets,
-    showTitles: true,
+    showTitles: false,
     interval: 1,
     reservedSize: 40,
   );

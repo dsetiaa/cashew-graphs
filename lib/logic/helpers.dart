@@ -1,3 +1,16 @@
+import 'package:cashew_graphs/database/tables.dart';
+import 'package:drift/drift.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:googleapis/cloudsearch/v1.dart';
+import 'package:cashew_graphs/logic/constants.dart' as Constants;
+import 'package:flutter/material.dart';
+
+enum TimeUnit {
+  day,
+  month
+}
+
+
 DateTime getStartOfCurrentMonth() {
   final now = DateTime.now();
   return DateTime(now.year, now.month, 1, 0, 0, 0, 0, 0);
@@ -24,4 +37,95 @@ DateTime getEndOfCurrentMonth() {
   start: getStartOfCurrentMonth(),
   end: getEndOfCurrentMonth(),
   );
+}
+
+
+bool isPartOfSameTimePeriod({required DateTime a, required DateTime b, required TimeUnit timeUnit}){
+  if(timeUnit == TimeUnit.day){
+    return (a.day == b.day) && (a.month == b.month) && (a.year == b.year);
+  }
+  else if(timeUnit == TimeUnit.month){
+    return (a.month == b.month) && (a.year == b.year);
+  }
+  else{
+    throw InvalidDataException("Invalid Time Unit");
+  }
+}
+
+Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
+  required List<TransactionWithCategory> transactionsWithCategory,
+  required TimeUnit timeUnit})
+{
+  Map<String,List<({DateTime date, double amount})>> graphLinesDict = {};
+  for(TransactionWithCategory twc in transactionsWithCategory) {
+    for (String categoryPk in [twc.category.categoryPk, "total"]) {
+      if (graphLinesDict[categoryPk] != null) {
+        if (isPartOfSameTimePeriod(a: graphLinesDict[categoryPk]!.last.date,
+            b: twc.transaction.dateCreated, timeUnit: timeUnit)) {
+          var lastRecord = graphLinesDict[categoryPk]!.last;
+          graphLinesDict[categoryPk]![graphLinesDict[categoryPk]!.length -
+              1] = (
+          date: lastRecord.date,
+          amount: lastRecord.amount + twc.transaction.amount
+          );
+        } else {
+          graphLinesDict[categoryPk]!.add((
+          date: twc.transaction.dateCreated,
+          amount: twc.transaction.amount
+          ));
+        }
+      } else {
+        graphLinesDict[categoryPk] =
+        [(date: twc.transaction.dateCreated, amount: twc.transaction.amount)];
+      }
+    }
+  }
+  return graphLinesDict;
+}
+
+
+// int getXCoordinateForDateInRange({required DateTime date, required TimeUnit timeUnit,
+//   required DateTime rangeStart, required DateTime rangeEnd}){
+//   if(timeUnit == TimeUnit.day){
+//
+//   } else if(timeUnit == TimeUnit.month){
+//
+//   } else{
+//     throw InvalidDataException("Invalid Time Unit");
+//   }
+//
+// }
+
+List<LineChartBarData> getGraphLines({
+  required Map<String,List<({DateTime date, double amount})>> graphLinesDict,
+  required List<TransactionCategory> categories, required DateTime startDateTime,
+  required DateTime endDateTime})
+{
+  List<LineChartBarData> graphLines = [];
+
+  graphLinesDict.forEach((categoryPk, perTimeUnitDataList){
+    Color lineColor;
+    if(categoryPk != Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK) {
+      TransactionCategory matchedCategory = categories.firstWhere((tk) =>
+      tk.categoryPk == categoryPk);
+      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38;
+    } else {
+      lineColor = Colors.black;
+    }
+
+    graphLines.add(
+        LineChartBarData(
+          isCurved: true,
+          curveSmoothness: 0,
+          color: lineColor.withValues(alpha: 0.5),
+          barWidth: 3,
+          isStrokeCapRound: false,
+          dotData: const FlDotData(show: false),
+          belowBarData: BarAreaData(show: false),
+          spots: perTimeUnitDataList.map((dataPoint) => FlSpot(dataPoint.date.day.toDouble(), dataPoint.amount.abs())).toList()
+        )
+    );
+  });
+
+  return graphLines;
 }

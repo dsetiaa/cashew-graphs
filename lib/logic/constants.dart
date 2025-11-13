@@ -1,0 +1,1 @@
+final String SUM_OF_ALL_CATEGORIES_DUMMY_PK = "total";

@@ -2,8 +2,11 @@ import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
 import 'package:cashew_graphs/graphs/line_graphs/montly_line_graphs/montly_per_day.dart';
 import 'package:cashew_graphs/graphs/spending_line_graph.dart';
+import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import 'graphs/line_graphs/per_unit_period.dart';
 
 void main() {
   // await loadCurrencyJSON();
@@ -153,7 +156,11 @@ class _MyHomePageState extends State<MyHomePage> {
         //       print("fin");
 
               // return
-    MonthlyPerDaySpending(database: database,)
+            StartToEndPerUnitSpending(database: database,
+                startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
+                endDateTime: DateTime(2025, 9 + 1, 1).subtract(const Duration(milliseconds: 1)),
+                timeUnit: TimeUnit.day
+            )
     // ;
     //         },
     //       ),

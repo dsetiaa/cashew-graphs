@@ -157,7 +157,7 @@ class _MonthlyPerDaySpendingState extends State<MonthlyPerDaySpending> {
 
         print("printing transactions");
         for(TransactionWithCategory twc in transactionsWithCategory) {
-          print("Transaction: AMT: ${twc.transaction.amount}, DATE: ${twc.transaction.dateCreated}, CATEGORY: ${twc.category.mainCategoryPk}");
+          print("Transaction: AMT: ${twc.transaction.amount}, DATE: ${twc.transaction.dateCreated}, SUBCATEGORY: ${twc.subCategory?.name}, CATEGORY : ${twc.category.name}");
         }
         print("fin");
 
