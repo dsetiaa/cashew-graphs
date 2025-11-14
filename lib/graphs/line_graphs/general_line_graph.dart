@@ -37,8 +37,8 @@ class _LineChartState extends State<_LineChart> {
     borderData: borderData,
     lineBarsData: widget.graphLines,
     minX: 0,
-    maxX: 30,
-    maxY: 40000,
+    maxX: 40, //TODO: dynamically adjust this
+    maxY: 40000, //TODO: dynamically adjust this
     minY: 0,
   );
 

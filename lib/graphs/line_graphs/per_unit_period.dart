@@ -60,7 +60,7 @@ class _StartToEndPerUnitSpendingState extends State<StartToEndPerUnitSpending> {
     getGraphLinesDict(transactionsWithCategory: transactionsWithCategory,
         timeUnit: widget.timeUnit);
     List<LineChartBarData> graphLines = getGraphLines(
-        graphLinesDict: graphLinesDict, categories: categories,
+        graphLinesDict: graphLinesDict, categories: categories, timeUnit: widget.timeUnit,
         startDateTime: widget.startDateTime, endDateTime: widget.endDateTime );
     return graphLines;
   }

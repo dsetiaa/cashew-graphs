@@ -84,22 +84,21 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
 }
 
 
-// int getXCoordinateForDateInRange({required DateTime date, required TimeUnit timeUnit,
-//   required DateTime rangeStart, required DateTime rangeEnd}){
-//   if(timeUnit == TimeUnit.day){
-//
-//   } else if(timeUnit == TimeUnit.month){
-//
-//   } else{
-//     throw InvalidDataException("Invalid Time Unit");
-//   }
-//
-// }
+int getXCoordinateForDateInRange({required DateTime date, required TimeUnit timeUnit,
+  required DateTime rangeStart, required DateTime rangeEnd}){
+  if(timeUnit == TimeUnit.day){
+    return 1 + DateTime(date.year, date.month, date.day, 1).difference(DateTime(rangeStart.year, rangeStart.month, rangeStart.day)).inDays;
+  } else if(timeUnit == TimeUnit.month){
+    return 1 + (date.month-rangeStart.month) + (date.year-rangeStart.year)*12;
+  } else{
+    throw InvalidDataException("Invalid Time Unit");
+  }
+}
 
 List<LineChartBarData> getGraphLines({
   required Map<String,List<({DateTime date, double amount})>> graphLinesDict,
   required List<TransactionCategory> categories, required DateTime startDateTime,
-  required DateTime endDateTime})
+  required DateTime endDateTime, required TimeUnit timeUnit})
 {
   List<LineChartBarData> graphLines = [];
 
@@ -122,7 +121,12 @@ List<LineChartBarData> getGraphLines({
           isStrokeCapRound: false,
           dotData: const FlDotData(show: false),
           belowBarData: BarAreaData(show: false),
-          spots: perTimeUnitDataList.map((dataPoint) => FlSpot(dataPoint.date.day.toDouble(), dataPoint.amount.abs())).toList()
+          spots: perTimeUnitDataList.map((dataPoint) => FlSpot(
+              getXCoordinateForDateInRange(date: dataPoint.date,
+                  timeUnit: timeUnit, rangeStart: startDateTime,
+                  rangeEnd: endDateTime).toDouble(),
+              dataPoint.amount.abs()
+          )).toList()
         )
     );
   });
