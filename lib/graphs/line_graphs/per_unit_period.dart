@@ -11,6 +11,7 @@ class StartToEndPerUnitSpending extends StatefulWidget{
     required this.startDateTime,
     required this.endDateTime,
     required this.timeUnit,
+    required this.graphType,
     super.key
   });
 
@@ -18,6 +19,7 @@ class StartToEndPerUnitSpending extends StatefulWidget{
   final DateTime startDateTime;
   final DateTime endDateTime;
   final TimeUnit timeUnit;
+  final GraphType graphType;
   @override
   State<StartToEndPerUnitSpending> createState() => _StartToEndPerUnitSpendingState();
 }
@@ -62,8 +64,10 @@ class _StartToEndPerUnitSpendingState extends State<StartToEndPerUnitSpending> {
         rangeEnd: widget.endDateTime);
 
     List<LineChartBarData> graphLines = getGraphLines(
-        graphLinesDict: graphLinesDict, categories: categories, timeUnit: widget.timeUnit,
-        startDateTime: widget.startDateTime, endDateTime: widget.endDateTime );
+        graphLinesDict: graphLinesDict, categories: categories,
+        timeUnit: widget.timeUnit, startDateTime: widget.startDateTime,
+        endDateTime: widget.endDateTime, graphType: widget.graphType
+    );
     return graphLines;
   }
 

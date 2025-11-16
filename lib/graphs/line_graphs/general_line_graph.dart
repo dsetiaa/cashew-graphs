@@ -37,8 +37,8 @@ class _LineChartState extends State<_LineChart> {
     borderData: borderData,
     lineBarsData: widget.graphLines,
     minX: 0,
-    maxX: 40, //TODO: dynamically adjust this
-    maxY: 40000, //TODO: dynamically adjust this
+    maxX: 65, //TODO: dynamically adjust this
+    maxY: 130000, //TODO: dynamically adjust this
     minY: 0,
   );
 
@@ -149,6 +149,7 @@ class _LineChartState extends State<_LineChart> {
   );
 
 
+  //TODO: dynamically adjust this
   Widget leftTitleWidgets(double value, TitleMeta meta) {
     const style = TextStyle(
       fontWeight: FontWeight.bold,
@@ -199,6 +200,7 @@ class _LineChartState extends State<_LineChart> {
       fontSize: 16,
     );
     Widget text;
+    //TODO: dynamically adjust this
     switch (value.toInt()) {
       case 2:
         text = const Text('SEPT', style: style);

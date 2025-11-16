@@ -10,6 +10,11 @@ enum TimeUnit {
   month
 }
 
+enum GraphType {
+  perTimeUnit,
+  aggregate
+}
+
 
 DateTime getStartOfCurrentMonth() {
   final now = DateTime.now();
@@ -163,7 +168,8 @@ int getXCoordinateForDateInRange({required DateTime date, required TimeUnit time
 List<LineChartBarData> getGraphLines({
   required Map<String,List<({DateTime date, double amount})>> graphLinesDict,
   required List<TransactionCategory> categories, required DateTime startDateTime,
-  required DateTime endDateTime, required TimeUnit timeUnit})
+  required DateTime endDateTime, required TimeUnit timeUnit,
+  required GraphType graphType})
 {
   List<LineChartBarData> graphLines = [];
 
@@ -177,6 +183,22 @@ List<LineChartBarData> getGraphLines({
       lineColor = Colors.black;
     }
 
+    List<FlSpot> spots = [];
+    perTimeUnitDataList.asMap().forEach((i, dataPoint){
+      double yCoordinate = dataPoint.amount.abs();
+      if(graphType == GraphType.aggregate){
+        if(i > 0){
+          yCoordinate += spots.last.y;
+        }
+      }
+      spots.add(FlSpot(
+          getXCoordinateForDateInRange(date: dataPoint.date,
+              timeUnit: timeUnit, rangeStart: startDateTime,
+              rangeEnd: endDateTime).toDouble(),
+          yCoordinate
+      ));
+    });
+
     graphLines.add(
         LineChartBarData(
           isCurved: true,
@@ -186,12 +208,7 @@ List<LineChartBarData> getGraphLines({
           isStrokeCapRound: false,
           dotData: const FlDotData(show: false),
           belowBarData: BarAreaData(show: false),
-          spots: perTimeUnitDataList.map((dataPoint) => FlSpot(
-              getXCoordinateForDateInRange(date: dataPoint.date,
-                  timeUnit: timeUnit, rangeStart: startDateTime,
-                  rangeEnd: endDateTime).toDouble(),
-              dataPoint.amount.abs()
-          )).toList()
+          spots:spots
         )
     );
   });

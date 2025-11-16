@@ -1,7 +1,4 @@
 import 'package:cashew_graphs/database/tables.dart';
-import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
-import 'package:cashew_graphs/graphs/line_graphs/montly_line_graphs/montly_per_day.dart';
-import 'package:cashew_graphs/graphs/spending_line_graph.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -159,7 +156,7 @@ class _MyHomePageState extends State<MyHomePage> {
             StartToEndPerUnitSpending(database: database,
                 startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
                 endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
-                timeUnit: TimeUnit.day
+                timeUnit: TimeUnit.day, graphType: GraphType.aggregate,
             )
     // ;
     //         },
