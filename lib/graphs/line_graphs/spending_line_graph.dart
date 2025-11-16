@@ -7,7 +7,7 @@ import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 
 // Top-level function for isolate computation
-List<LineChartBarData> _computeGraphLines(({
+LineGraphData _computeGraphLines(({
   List<TransactionWithCategory> transactionsWithCategory,
   List<TransactionCategory> categories,
   TimeUnit timeUnit,
@@ -23,7 +23,9 @@ List<LineChartBarData> _computeGraphLines(({
         rangeEnd: params.endDateTime
       );
 
-  List<LineChartBarData> graphLines = getGraphLines(
+  // List<LineChartBarData> graphLines;
+  // double maxY;
+  LineGraphData incompleteLineGraphDataGraphLinesAndMaxY = getGraphLinesAndMaxY(
     graphLinesDict: graphLinesDict,
     categories: params.categories,
     timeUnit: params.timeUnit,
@@ -32,7 +34,13 @@ List<LineChartBarData> _computeGraphLines(({
     graphType: params.graphType
   );
 
-  return graphLines;
+  double maxX = getMaxX(startDateTime: params.startDateTime,
+      endDateTime: params.endDateTime, timeUnit: params.timeUnit);
+
+  LineGraphData finalLineGraphData = LineGraphData(maxX: maxX,
+      maxY: incompleteLineGraphDataGraphLinesAndMaxY.maxY,
+      graphLines: incompleteLineGraphDataGraphLinesAndMaxY.graphLines);
+  return finalLineGraphData;
 }
 
 class TimeRangedSpendingLineGraph extends StatefulWidget{
@@ -57,7 +65,7 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
 class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGraph> {
 
 
-  late Future<List<LineChartBarData>> _graphLinesFuture;
+  late Future<LineGraphData> _lineGraphDataFuture;
 
   @override
   void initState() {
@@ -67,11 +75,11 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
 
   void _loadData() {
     setState(() {
-      _graphLinesFuture = _fetchDataAndProcessGraphLines();
+      _lineGraphDataFuture = _fetchDataAndProcessLineGraphData();
     });
   }
 
-  Future<List<LineChartBarData>> _fetchDataAndProcessGraphLines() async {
+  Future<LineGraphData> _fetchDataAndProcessLineGraphData() async {
     // Fetch data from database
     final results = await Future.wait([
       widget.database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
@@ -96,8 +104,8 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<LineChartBarData>>(
-      future: _graphLinesFuture,
+    return FutureBuilder<LineGraphData>(
+      future: _lineGraphDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -107,11 +115,13 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        final graphLines = snapshot.data!;
+        final lineGraphData = snapshot.data!;
 
         return GeneralLineChart(
           graphTitle: "Monthly Per Day",
-          graphLines: graphLines
+          graphLines: lineGraphData.graphLines,
+          maxX: lineGraphData.maxX,
+          maxY: lineGraphData.maxY
         );
       },
     );

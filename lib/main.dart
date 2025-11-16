@@ -126,42 +126,12 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        // child: Expanded(
             child:
-        //   child: FutureBuilder(
-        //     future: _dataFuture,
-        //     builder: (context, snapshot) {
-        //       if (snapshot.connectionState == ConnectionState.waiting) {
-        //         return Center(child: CircularProgressIndicator());
-        //       }
-        //
-        //       if (snapshot.hasError) {
-        //         return Center(child: Text('Error: ${snapshot.error}'));
-        //       }
-        //
-        //       // final transactions = snapshot.data ?? [];
-        //       final data = snapshot.data!;
-        //       final transactions = data.transactions;
-        //       final categories = data.categories;
-        //
-        //       print("printing transactions");
-        //       for(Transaction transaction in transactions) {
-        //         print("Transaction: AMT: ${transaction.amount}, DATE: ${transaction.dateCreated}");
-        //       }
-        //       print("fin");
-
-              // return
             TimeRangedSpendingLineGraph(database: database,
                 startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
-                endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
-                timeUnit: TimeUnit.day, graphType: GraphType.aggregate,
+                endDateTime: DateTime(2025, 9 + 1, 1).subtract(const Duration(milliseconds: 1)),
+                timeUnit: TimeUnit.day, graphType: GraphType.perTimeUnit,
             )
-    // ;
-    //         },
-    //       ),
-    //     ),
       ),
     );
   }

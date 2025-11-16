@@ -1,7 +1,8 @@
+import 'dart:math';
+
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:drift/drift.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:googleapis/cloudsearch/v1.dart';
 import 'package:cashew_graphs/logic/constants.dart' as Constants;
 import 'package:flutter/material.dart';
 
@@ -13,6 +14,18 @@ enum TimeUnit {
 enum GraphType {
   perTimeUnit,
   aggregate
+}
+
+class LineGraphData{
+  final double maxX;
+  final double maxY;
+  final List<LineChartBarData> graphLines;
+
+  LineGraphData({
+    required this.maxX,
+    required this.maxY,
+    required this.graphLines
+  });
 }
 
 
@@ -73,7 +86,7 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
 {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict = {};
   for(TransactionWithCategory twc in transactionsWithCategory) {
-    for (String categoryPk in [twc.category.categoryPk, "total"]) {
+    for (String categoryPk in [twc.category.categoryPk, Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK]) {
       //If some data points exist for that category
       if (graphLinesDict[categoryPk] != null) {
         //Add transaction amount to point if both correspond to same time period
@@ -155,7 +168,7 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
 
 
 int getXCoordinateForDateInRange({required DateTime date, required TimeUnit timeUnit,
-  required DateTime rangeStart, required DateTime rangeEnd}){
+  required DateTime rangeStart}){
   if(timeUnit == TimeUnit.day){
     return 1 + DateTime(date.year, date.month, date.day, 1).difference(DateTime(rangeStart.year, rangeStart.month, rangeStart.day)).inDays;
   } else if(timeUnit == TimeUnit.month){
@@ -165,13 +178,21 @@ int getXCoordinateForDateInRange({required DateTime date, required TimeUnit time
   }
 }
 
-List<LineChartBarData> getGraphLines({
+double getMaxX({required DateTime startDateTime, required DateTime endDateTime,
+  required TimeUnit timeUnit})
+{
+  return getXCoordinateForDateInRange(date: endDateTime, timeUnit: timeUnit,
+      rangeStart: startDateTime).toDouble() + 1;
+}
+
+LineGraphData getGraphLinesAndMaxY({
   required Map<String,List<({DateTime date, double amount})>> graphLinesDict,
   required List<TransactionCategory> categories, required DateTime startDateTime,
   required DateTime endDateTime, required TimeUnit timeUnit,
   required GraphType graphType})
 {
   List<LineChartBarData> graphLines = [];
+  double maxY = 0;
 
   graphLinesDict.forEach((categoryPk, perTimeUnitDataList){
     Color lineColor;
@@ -191,10 +212,10 @@ List<LineChartBarData> getGraphLines({
           yCoordinate += spots.last.y;
         }
       }
+      maxY = max(yCoordinate, maxY);
       spots.add(FlSpot(
           getXCoordinateForDateInRange(date: dataPoint.date,
-              timeUnit: timeUnit, rangeStart: startDateTime,
-              rangeEnd: endDateTime).toDouble(),
+              timeUnit: timeUnit, rangeStart: startDateTime).toDouble(),
           yCoordinate
       ));
     });
@@ -213,5 +234,6 @@ List<LineChartBarData> getGraphLines({
     );
   });
 
-  return graphLines;
+  maxY = (maxY*1.02).ceilToDouble();
+  return LineGraphData(maxX: 0, graphLines: graphLines, maxY: maxY);
 }

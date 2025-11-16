@@ -6,12 +6,16 @@ class _LineChart extends StatefulWidget {
   const _LineChart({
     // required this.spots,
     required this.graphLines,
+    required this.maxX,
+    required this.maxY,
     super.key
     // this.onTouchedIndex
   });
 
   // final List<List<FlSpot>> spots;
   final List<LineChartBarData> graphLines;
+  final double maxX;
+  final double maxY;
   // final Function(int?)? onTouchedIndex;
 
   @override
@@ -37,8 +41,8 @@ class _LineChartState extends State<_LineChart> {
     borderData: borderData,
     lineBarsData: widget.graphLines,
     minX: 0,
-    maxX: 65, //TODO: dynamically adjust this
-    maxY: 130000, //TODO: dynamically adjust this
+    maxX: widget.maxX, //TODO: dynamically adjust this
+    maxY: widget.maxY, //TODO: dynamically adjust this
     minY: 0,
   );
 
@@ -249,11 +253,15 @@ class GeneralLineChart extends StatefulWidget {
   const GeneralLineChart({
     required this.graphTitle,
     required this.graphLines,
+    required this.maxX,
+    required this.maxY,
     super.key
   });
 
   final String graphTitle;
   final List<LineChartBarData> graphLines;
+  final double maxX;
+  final double maxY;
 
   @override
   State<StatefulWidget> createState() => GeneralLineChartState();
@@ -277,7 +285,8 @@ class GeneralLineChartState extends State<GeneralLineChart> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(right: 16, left: 6),
-                  child: _LineChart(graphLines: widget.graphLines),
+                  child: _LineChart(graphLines: widget.graphLines,
+                    maxX: widget.maxX, maxY: widget.maxY,),
                 ),
               ),
               const SizedBox(
