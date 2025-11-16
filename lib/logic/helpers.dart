@@ -52,14 +52,26 @@ bool isPartOfSameTimePeriod({required DateTime a, required DateTime b, required 
   }
 }
 
+DateTime createNextSeriesDateTime({required DateTime previousDate, required TimeUnit timeUnit}) {
+  if(timeUnit == TimeUnit.day){
+    return DateTime(previousDate.year, previousDate.month, previousDate.day+1);
+  } else if(timeUnit == TimeUnit.month) {
+    return DateTime(previousDate.year, previousDate.month+1, previousDate.day);
+  }else {
+    throw InvalidDataException("Invalid Time Unit");
+  }
+}
+
 Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
   required List<TransactionWithCategory> transactionsWithCategory,
-  required TimeUnit timeUnit})
+  required TimeUnit timeUnit, required DateTime rangeStart, required DateTime rangeEnd})
 {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict = {};
   for(TransactionWithCategory twc in transactionsWithCategory) {
     for (String categoryPk in [twc.category.categoryPk, "total"]) {
+      //If some data points exist for that category
       if (graphLinesDict[categoryPk] != null) {
+        //Add transaction amount to point if both correspond to same time period
         if (isPartOfSameTimePeriod(a: graphLinesDict[categoryPk]!.last.date,
             b: twc.transaction.dateCreated, timeUnit: timeUnit)) {
           var lastRecord = graphLinesDict[categoryPk]!.last;
@@ -69,17 +81,70 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
           amount: lastRecord.amount + twc.transaction.amount
           );
         } else {
+          // Add intermediate points
+          while(!isPartOfSameTimePeriod(
+              a: createNextSeriesDateTime(
+                  previousDate: graphLinesDict[categoryPk]!.last.date,
+                  timeUnit: timeUnit),
+              b: twc.transaction.dateCreated, timeUnit: timeUnit))
+          {
+            graphLinesDict[categoryPk]!.add((
+              date: createNextSeriesDateTime(
+                  previousDate: graphLinesDict[categoryPk]!.last.date,
+                  timeUnit: timeUnit),
+              amount: 0
+            ));
+          }
+
+          // Add transaction data point
           graphLinesDict[categoryPk]!.add((
           date: twc.transaction.dateCreated,
           amount: twc.transaction.amount
           ));
         }
       } else {
-        graphLinesDict[categoryPk] =
-        [(date: twc.transaction.dateCreated, amount: twc.transaction.amount)];
+        // If no data points exist for that category
+
+        // Add start point
+        if(!isPartOfSameTimePeriod(a: rangeStart, b: twc.transaction.dateCreated, timeUnit: timeUnit)){
+          graphLinesDict[categoryPk] = [(
+              date: rangeStart,
+              amount: 0
+          )];
+        }
+        // Add intermediate points
+        while(!isPartOfSameTimePeriod(
+            a: createNextSeriesDateTime(
+                previousDate: graphLinesDict[categoryPk]!.last.date,
+                timeUnit: timeUnit),
+            b: twc.transaction.dateCreated, timeUnit: timeUnit))
+        {
+          graphLinesDict[categoryPk]!.add((
+          date: createNextSeriesDateTime(
+              previousDate: graphLinesDict[categoryPk]!.last.date,
+              timeUnit: timeUnit),
+          amount: 0
+          ));
+        }
+
+        // Add transaction data
+        graphLinesDict[categoryPk]!.add((date: twc.transaction.dateCreated, amount: twc.transaction.amount));
       }
     }
   }
+
+  graphLinesDict.forEach((categoryPk, perTimeUnitDataList){
+    while(!isPartOfSameTimePeriod(
+        a: perTimeUnitDataList.last.date,
+        b: rangeEnd, timeUnit: timeUnit)){
+      perTimeUnitDataList.add((
+      date: createNextSeriesDateTime(
+          previousDate: perTimeUnitDataList.last.date,
+          timeUnit: timeUnit),
+      amount: 0
+      ));
+    }
+  });
   return graphLinesDict;
 }
 

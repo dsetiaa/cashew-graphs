@@ -956,7 +956,7 @@ class FinanceDatabase extends _$FinanceDatabase {
     final $ObjectivesTable objectiveLoans = alias(objectives, 'objectiveLoans');
     final query = (select(transactions)
       ..where(filter)
-      ..orderBy([(t) => OrderingTerm.desc(t.dateCreated)]))
+      ..orderBy([(t) => OrderingTerm.asc(t.dateCreated)]))
         .join([
       innerJoin(
         categories,
