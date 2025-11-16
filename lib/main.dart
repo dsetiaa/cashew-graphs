@@ -3,7 +3,7 @@ import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'graphs/line_graphs/per_unit_period.dart';
+import 'graphs/line_graphs/spending_line_graph.dart';
 
 void main() {
   // await loadCurrencyJSON();
@@ -153,7 +153,7 @@ class _MyHomePageState extends State<MyHomePage> {
         //       print("fin");
 
               // return
-            StartToEndPerUnitSpending(database: database,
+            TimeRangedSpendingLineGraph(database: database,
                 startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
                 endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
                 timeUnit: TimeUnit.day, graphType: GraphType.aggregate,
