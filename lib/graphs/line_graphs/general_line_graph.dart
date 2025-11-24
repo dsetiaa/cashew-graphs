@@ -1,3 +1,5 @@
+import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
+import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +10,8 @@ class _LineChart extends StatefulWidget {
     required this.graphLines,
     required this.maxX,
     required this.maxY,
+    required this.leftTitleWidgets,
+    required this.bottomTitleWidgets,
     super.key
     // this.onTouchedIndex
   });
@@ -16,6 +20,8 @@ class _LineChart extends StatefulWidget {
   final List<LineChartBarData> graphLines;
   final double maxX;
   final double maxY;
+  final GetTitleWidgetFunction leftTitleWidgets;
+  final GetTitleWidgetFunction bottomTitleWidgets;
   // final Function(int?)? onTouchedIndex;
 
   @override
@@ -153,85 +159,18 @@ class _LineChartState extends State<_LineChart> {
   );
 
 
-  //TODO: dynamically adjust this
-  Widget leftTitleWidgets(double value, TitleMeta meta) {
-    const style = TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 14,
-    );
-    return Container();
-    String text;
-    switch (value.toInt()) {
-      case 1:
-        text = '1m';
-        break;
-      case 2:
-        text = '2m';
-        break;
-      case 3:
-        text = '3m';
-        break;
-      case 4:
-        text = '5m';
-        break;
-      case 5:
-        text = '6m';
-        break;
-      default:
-        return Container();
-    }
-
-    return SideTitleWidget(
-      meta: meta,
-      child: Text(
-        text,
-        style: style,
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-
   SideTitles leftTitles() => SideTitles(
-    getTitlesWidget: leftTitleWidgets,
-    showTitles: false,
-    interval: 1,
+    getTitlesWidget: widget.leftTitleWidgets,
+    showTitles: true,
+    interval: getStepSizeInScale(widget.maxY, getScaleInPowerOf10(widget.maxY)).toDouble(),
     reservedSize: 40,
   );
-
-  Widget bottomTitleWidgets(double value, TitleMeta meta) {
-    const style = TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 16,
-    );
-    Widget text;
-    //TODO: dynamically adjust this
-    switch (value.toInt()) {
-      case 2:
-        text = const Text('SEPT', style: style);
-        break;
-      case 7:
-        text = const Text('OCT', style: style);
-        break;
-      case 12:
-        text = const Text('DEC', style: style);
-        break;
-      default:
-        text = const Text('');
-        break;
-    }
-
-    return SideTitleWidget(
-      meta: meta,
-      space: 10,
-      child: text,
-    );
-  }
 
   SideTitles get bottomTitles => SideTitles(
     showTitles: true,
     reservedSize: 32,
     interval: 1,
-    getTitlesWidget: bottomTitleWidgets,
+    getTitlesWidget: widget.bottomTitleWidgets,
   );
 
   FlGridData get gridData => const FlGridData(show: true);
@@ -255,6 +194,8 @@ class GeneralLineChart extends StatefulWidget {
     required this.graphLines,
     required this.maxX,
     required this.maxY,
+    required this.leftTitleWidgets,
+    required this.bottomTitleWidgets,
     super.key
   });
 
@@ -262,6 +203,8 @@ class GeneralLineChart extends StatefulWidget {
   final List<LineChartBarData> graphLines;
   final double maxX;
   final double maxY;
+  final GetTitleWidgetFunction leftTitleWidgets;
+  final GetTitleWidgetFunction bottomTitleWidgets;
 
   @override
   State<StatefulWidget> createState() => GeneralLineChartState();
@@ -286,7 +229,9 @@ class GeneralLineChartState extends State<GeneralLineChart> {
                 child: Padding(
                   padding: const EdgeInsets.only(right: 16, left: 6),
                   child: _LineChart(graphLines: widget.graphLines,
-                    maxX: widget.maxX, maxY: widget.maxY,),
+                    maxX: widget.maxX, maxY: widget.maxY,
+                    leftTitleWidgets: widget.leftTitleWidgets,
+                    bottomTitleWidgets: widget.bottomTitleWidgets,),
                 ),
               ),
               const SizedBox(

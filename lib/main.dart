@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'graphs/line_graphs/spending_line_graph.dart';
+import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 
 void main() {
   // await loadCurrencyJSON();
@@ -129,8 +130,8 @@ class _MyHomePageState extends State<MyHomePage> {
             child:
             TimeRangedSpendingLineGraph(database: database,
                 startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
-                endDateTime: DateTime(2025, 9 + 1, 1).subtract(const Duration(milliseconds: 1)),
-                timeUnit: TimeUnit.day, graphType: GraphType.perTimeUnit,
+                endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
+                timeUnit: TimeUnit.month, graphType: LineGraphType.aggregate,
             )
       ),
     );

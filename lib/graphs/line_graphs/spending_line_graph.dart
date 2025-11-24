@@ -1,10 +1,10 @@
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:drift/drift.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
+import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 
 // Top-level function for isolate computation
 LineGraphData _computeGraphLines(({
@@ -13,7 +13,7 @@ LineGraphData _computeGraphLines(({
   TimeUnit timeUnit,
   DateTime startDateTime,
   DateTime endDateTime,
-  GraphType graphType
+  LineGraphType graphType
 }) params) {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict =
       getGraphLinesDict(
@@ -57,7 +57,7 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
   final DateTime startDateTime;
   final DateTime endDateTime;
   final TimeUnit timeUnit;
-  final GraphType graphType;
+  final LineGraphType graphType;
   @override
   State<TimeRangedSpendingLineGraph> createState() => _TimeRangedSpendingLineGraphState();
 }
@@ -121,7 +121,9 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
           graphTitle: "Monthly Per Day",
           graphLines: lineGraphData.graphLines,
           maxX: lineGraphData.maxX,
-          maxY: lineGraphData.maxY
+          maxY: lineGraphData.maxY,
+          leftTitleWidgets: getYAxisTitleWidgets,
+          bottomTitleWidgets: (value, meta) => getXAxisTitleWidgets(value, meta, widget.timeUnit, widget.startDateTime, widget.endDateTime),
         );
       },
     );
