@@ -268,3 +268,12 @@ required DateTime rangeStart, required TimeUnit timeUnit}){
     throw InvalidDataException("");
   }
 }
+
+String getLineTouchToolTipHeading(double xCoordinate, DateTime rangeStart, DateTime rangeEnd, TimeUnit timeUnit){
+  return getDisplayTextForDate(
+      getDateTimeFromStartTimeAndIndex(index: xCoordinate.toInt(),
+          rangeStart: rangeStart, timeUnit: timeUnit
+      ),
+      timeUnit, rangeStart, rangeEnd
+  );
+}

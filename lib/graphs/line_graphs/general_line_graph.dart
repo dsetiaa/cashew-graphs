@@ -12,6 +12,7 @@ class _LineChart extends StatefulWidget {
     required this.maxY,
     required this.leftTitleWidgets,
     required this.bottomTitleWidgets,
+    required this.getLineTouchToolTipHeadingFunction,
     super.key
     // this.onTouchedIndex
   });
@@ -22,6 +23,7 @@ class _LineChart extends StatefulWidget {
   final double maxY;
   final GetTitleWidgetFunction leftTitleWidgets;
   final GetTitleWidgetFunction bottomTitleWidgets;
+  final Function getLineTouchToolTipHeadingFunction;
   // final Function(int?)? onTouchedIndex;
 
   @override
@@ -47,8 +49,8 @@ class _LineChartState extends State<_LineChart> {
     borderData: borderData,
     lineBarsData: widget.graphLines,
     minX: 0,
-    maxX: widget.maxX, //TODO: dynamically adjust this
-    maxY: widget.maxY, //TODO: dynamically adjust this
+    maxX: widget.maxX,
+    maxY: widget.maxY,
     minY: 0,
   );
 
@@ -68,7 +70,7 @@ class _LineChartState extends State<_LineChart> {
               return null;
             }
 
-            String startAndEndDateString = "DATE: ${lineBarSpot.x}\n";
+            String lineTouchToolTipHeading = "${widget.getLineTouchToolTipHeadingFunction(lineBarSpot.x)}\n";
 
             return LineTooltipItem(
               "",
@@ -78,7 +80,7 @@ class _LineChartState extends State<_LineChart> {
                 //     index == 0)
                 if (index == 0)
                   TextSpan(
-                    text: startAndEndDateString,
+                    text: lineTouchToolTipHeading,
                     style: TextStyle(
                       // color: getColor(context, "black").withOpacity(0.8),
                       fontWeight: FontWeight.bold,
@@ -196,6 +198,7 @@ class GeneralLineChart extends StatefulWidget {
     required this.maxY,
     required this.leftTitleWidgets,
     required this.bottomTitleWidgets,
+    required this.getLineTouchToolTipHeadingFunction,
     super.key
   });
 
@@ -205,6 +208,7 @@ class GeneralLineChart extends StatefulWidget {
   final double maxY;
   final GetTitleWidgetFunction leftTitleWidgets;
   final GetTitleWidgetFunction bottomTitleWidgets;
+  final Function getLineTouchToolTipHeadingFunction;
 
   @override
   State<StatefulWidget> createState() => GeneralLineChartState();
@@ -231,7 +235,9 @@ class GeneralLineChartState extends State<GeneralLineChart> {
                   child: _LineChart(graphLines: widget.graphLines,
                     maxX: widget.maxX, maxY: widget.maxY,
                     leftTitleWidgets: widget.leftTitleWidgets,
-                    bottomTitleWidgets: widget.bottomTitleWidgets,),
+                    bottomTitleWidgets: widget.bottomTitleWidgets,
+                    getLineTouchToolTipHeadingFunction: widget.getLineTouchToolTipHeadingFunction,
+                  ),
                 ),
               ),
               const SizedBox(

@@ -131,7 +131,7 @@ class _MyHomePageState extends State<MyHomePage> {
             TimeRangedSpendingLineGraph(database: database,
                 startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
                 endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
-                timeUnit: TimeUnit.month, graphType: LineGraphType.aggregate,
+                timeUnit: TimeUnit.day, graphType: LineGraphType.perTimeUnit,
             )
       ),
     );

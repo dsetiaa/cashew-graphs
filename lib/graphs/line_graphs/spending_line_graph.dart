@@ -124,6 +124,7 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
           maxY: lineGraphData.maxY,
           leftTitleWidgets: getYAxisTitleWidgets,
           bottomTitleWidgets: (value, meta) => getXAxisTitleWidgets(value, meta, widget.timeUnit, widget.startDateTime, widget.endDateTime),
+          getLineTouchToolTipHeadingFunction: (x) => getLineTouchToolTipHeading(x, widget.startDateTime, widget.endDateTime, widget.timeUnit),
         );
       },
     );
