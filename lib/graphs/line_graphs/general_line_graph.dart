@@ -59,7 +59,7 @@ class _LineChartState extends State<_LineChart> {
     handleBuiltInTouches: true,
     touchTooltipData: LineTouchTooltipData(
         getTooltipColor: (touchedSpot) =>
-            Colors.redAccent.withValues(alpha: 0.1),
+            Colors.white.withValues(alpha: 0.1),
         getTooltipItems: (List<LineBarSpot> touchedSpots) {
 
           return touchedSpots.asMap().entries.map((entry) {
@@ -83,6 +83,7 @@ class _LineChartState extends State<_LineChart> {
                     text: lineTouchToolTipHeading,
                     style: TextStyle(
                       // color: getColor(context, "black").withOpacity(0.8),
+                      color: Colors.black,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                       fontFamilyFallback: ['Inter'],
@@ -99,6 +100,7 @@ class _LineChartState extends State<_LineChart> {
                     //     lightenPastel(widget.color, amount: 0.3)
                     //     ? getColor(context, "black").withOpacity(0.8)
                     //     : lineBarSpot.bar.color,
+                    color: lineBarSpot.bar.color,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     fontFamilyFallback: ['Inter'],
