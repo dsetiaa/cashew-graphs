@@ -72,6 +72,8 @@ class _LineChartState extends State<_LineChart> {
       }
     },
     touchTooltipData: LineTouchTooltipData(
+        fitInsideHorizontally: true,
+        fitInsideVertically: true,
         getTooltipColor: (touchedSpot) =>
             Colors.white.withValues(alpha: 0.1),
         getTooltipItems: (List<LineBarSpot> touchedSpots) {
@@ -107,7 +109,7 @@ class _LineChartState extends State<_LineChart> {
                   // text: convertToMoney(
                   //     Provider.of<AllWallets>(context, listen: false),
                   //     lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y),
-                  text: "${lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y}",
+                  text: (index < 3)? "${lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y}": "",
                   style: TextStyle(
                     // color: lineBarSpot.bar.color ==
                     //     lightenPastel(widget.color, amount: 0.3)
