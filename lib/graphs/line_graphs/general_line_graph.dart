@@ -13,6 +13,7 @@ class _LineChart extends StatefulWidget {
     required this.leftTitleWidgets,
     required this.bottomTitleWidgets,
     required this.getLineTouchToolTipHeadingFunction,
+    required this.onTouchedLines,
     super.key
     // this.onTouchedIndex
   });
@@ -24,6 +25,7 @@ class _LineChart extends StatefulWidget {
   final GetTitleWidgetFunction leftTitleWidgets;
   final GetTitleWidgetFunction bottomTitleWidgets;
   final Function getLineTouchToolTipHeadingFunction;
+  final Function(List<LineBarSpot>?) onTouchedLines;
   // final Function(int?)? onTouchedIndex;
 
   @override
@@ -32,7 +34,6 @@ class _LineChart extends StatefulWidget {
 
 class _LineChartState extends State<_LineChart> {
   int? touchedValue = null;
-
 
   @override
   Widget build(BuildContext context) {
@@ -54,14 +55,26 @@ class _LineChartState extends State<_LineChart> {
     minY: 0,
   );
 
-
   LineTouchData get lineTouchData => LineTouchData(
     handleBuiltInTouches: true,
+    touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
+      if (touchResponse != null && touchResponse.lineBarSpots != null) {
+        // Filter out transparent lines and sort by y value
+        final validSpots = touchResponse.lineBarSpots!
+            .where((spot) => spot.bar.color != Colors.transparent)
+            .toList()
+          ..sort((a, b) => b.y.compareTo(a.y));
+
+        // Pass top 3 lines to parent
+        widget.onTouchedLines(validSpots.take(3).toList());
+      } else {
+        widget.onTouchedLines(null);
+      }
+    },
     touchTooltipData: LineTouchTooltipData(
         getTooltipColor: (touchedSpot) =>
             Colors.white.withValues(alpha: 0.1),
         getTooltipItems: (List<LineBarSpot> touchedSpots) {
-
           return touchedSpots.asMap().entries.map((entry) {
             LineBarSpot lineBarSpot = entry.value;
             int index = entry.key;
@@ -162,7 +175,6 @@ class _LineChartState extends State<_LineChart> {
     ),
   );
 
-
   SideTitles leftTitles() => SideTitles(
     getTitlesWidget: widget.leftTitleWidgets,
     showTitles: true,
@@ -183,7 +195,7 @@ class _LineChartState extends State<_LineChart> {
     show: true,
     border: Border(
       bottom: BorderSide(
-          color: AppColors.primary.withValues(alpha: 0.3), width: 3,),
+        color: AppColors.primary.withValues(alpha: 0.3), width: 3,),
       left: BorderSide(
           color: AppColors.primary.withValues(alpha: 0.3), width: 3),
       right: const BorderSide(color: Colors.transparent),
@@ -201,6 +213,7 @@ class GeneralLineChart extends StatefulWidget {
     required this.leftTitleWidgets,
     required this.bottomTitleWidgets,
     required this.getLineTouchToolTipHeadingFunction,
+    required this.lineLabels, // Optional line labels
     super.key
   });
 
@@ -211,57 +224,102 @@ class GeneralLineChart extends StatefulWidget {
   final GetTitleWidgetFunction leftTitleWidgets;
   final GetTitleWidgetFunction bottomTitleWidgets;
   final Function getLineTouchToolTipHeadingFunction;
+  final List<String> lineLabels; // Labels for each line in graphLines
 
   @override
   State<StatefulWidget> createState() => GeneralLineChartState();
 }
 
 class GeneralLineChartState extends State<GeneralLineChart> {
+  List<LineBarSpot>? touchedLines;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.23,
-      child: Stack(
-        children: <Widget>[
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-
-              const SizedBox(
-                height: 37,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 16, left: 6),
-                  child: _LineChart(graphLines: widget.graphLines,
-                    maxX: widget.maxX, maxY: widget.maxY,
-                    leftTitleWidgets: widget.leftTitleWidgets,
-                    bottomTitleWidgets: widget.bottomTitleWidgets,
-                    getLineTouchToolTipHeadingFunction: widget.getLineTouchToolTipHeadingFunction,
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 17,
-              ),
-              Text(
-                widget.graphTitle,
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 27,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(
-                height: 17,
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const SizedBox(
+          height: 37,
+        ),
+        AspectRatio(
+          aspectRatio: 3/2,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16, left: 6),
+            child: _LineChart(
+              graphLines: widget.graphLines,
+              maxX: widget.maxX,
+              maxY: widget.maxY,
+              leftTitleWidgets: widget.leftTitleWidgets,
+              bottomTitleWidgets: widget.bottomTitleWidgets,
+              getLineTouchToolTipHeadingFunction: widget.getLineTouchToolTipHeadingFunction,
+              onTouchedLines: (lines) {
+                setState(() {
+                  touchedLines = lines;
+                });
+              },
+            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(
+          height: 17,
+        ),
+        // Legend
+        if (touchedLines != null && touchedLines!.isNotEmpty)
+          const SizedBox(height: 8),
+        if (touchedLines != null && touchedLines!.isNotEmpty)
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            crossAxisCount: 2,
+            childAspectRatio: 5,
+            // mainAxisSpacing: 4,
+            // crossAxisSpacing: 8,
+            children: touchedLines!.asMap().entries.map((entry) {
+                final spot = entry.value;
+                final lineIndex = spot.barIndex;
+                final label = widget.lineLabels[lineIndex];
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 3,
+                        color: spot.bar.color,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$label: ${spot.y == -1e-14 ? 0 : spot.y.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+          ),
+        // const SizedBox(
+        //   height: 17,
+        // ),
+        Text(
+          widget.graphTitle,
+          style: TextStyle(
+            color: AppColors.primary,
+            fontSize: 27,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(
+          height: 17,
+        ),
+      ],
     );
   }
 }

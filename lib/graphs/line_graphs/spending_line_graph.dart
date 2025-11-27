@@ -25,7 +25,7 @@ LineGraphData _computeGraphLines(({
 
   // List<LineChartBarData> graphLines;
   // double maxY;
-  LineGraphData incompleteLineGraphDataGraphLinesAndMaxY = getGraphLinesAndMaxY(
+  LineGraphData incompleteLineGraphDataGraphLinesAndMaxY = getGraphLinesLineLabelsAndMaxY(
     graphLinesDict: graphLinesDict,
     categories: params.categories,
     timeUnit: params.timeUnit,
@@ -39,7 +39,8 @@ LineGraphData _computeGraphLines(({
 
   LineGraphData finalLineGraphData = LineGraphData(maxX: maxX,
       maxY: incompleteLineGraphDataGraphLinesAndMaxY.maxY,
-      graphLines: incompleteLineGraphDataGraphLinesAndMaxY.graphLines);
+      graphLines: incompleteLineGraphDataGraphLinesAndMaxY.graphLines,
+      lineLabels: incompleteLineGraphDataGraphLinesAndMaxY.lineLabels);
   return finalLineGraphData;
 }
 
@@ -120,6 +121,7 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
         return GeneralLineChart(
           graphTitle: "Monthly Per Day",
           graphLines: lineGraphData.graphLines,
+          lineLabels: lineGraphData.lineLabels,
           maxX: lineGraphData.maxX,
           maxY: lineGraphData.maxY,
           leftTitleWidgets: getYAxisTitleWidgets,

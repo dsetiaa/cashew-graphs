@@ -17,11 +17,13 @@ class LineGraphData{
   final double maxX;
   final double maxY;
   final List<LineChartBarData> graphLines;
+  final List<String> lineLabels;
 
   LineGraphData({
     required this.maxX,
     required this.maxY,
-    required this.graphLines
+    required this.graphLines,
+    required this.lineLabels,
   });
 }
 
@@ -133,23 +135,27 @@ double getMaxX({required DateTime startDateTime, required DateTime endDateTime,
       rangeStart: startDateTime).toDouble() + 1;
 }
 
-LineGraphData getGraphLinesAndMaxY({
+LineGraphData getGraphLinesLineLabelsAndMaxY({
   required Map<String,List<({DateTime date, double amount})>> graphLinesDict,
   required List<TransactionCategory> categories, required DateTime startDateTime,
   required DateTime endDateTime, required TimeUnit timeUnit,
   required LineGraphType graphType})
 {
   List<LineChartBarData> graphLines = [];
+  List<String> lineLabels = [];
   double maxY = 0;
 
   graphLinesDict.forEach((categoryPk, perTimeUnitDataList){
     Color lineColor;
+    String lineLabel;
     if(categoryPk != Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK) {
       TransactionCategory matchedCategory = categories.firstWhere((tk) =>
       tk.categoryPk == categoryPk);
       lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38;
+      lineLabel = matchedCategory.name;
     } else {
       lineColor = Colors.black;
+      lineLabel = "TOTAL";
     }
 
     List<FlSpot> spots = [];
@@ -180,10 +186,12 @@ LineGraphData getGraphLinesAndMaxY({
             spots:spots
         )
     );
+
+    lineLabels.add(lineLabel);
   });
 
   maxY = (maxY*1.02).ceilToDouble();
-  return LineGraphData(maxX: 0, graphLines: graphLines, maxY: maxY);
+  return LineGraphData(maxX: 0, graphLines: graphLines, lineLabels: lineLabels, maxY: maxY);
 }
 
 Widget getXAxisTitleWidgets(double value, TitleMeta meta, TimeUnit timeUnit, DateTime rangeStart, DateTime rangeEnd) {
