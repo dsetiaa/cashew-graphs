@@ -151,7 +151,7 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
     if(categoryPk != Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK) {
       TransactionCategory matchedCategory = categories.firstWhere((tk) =>
       tk.categoryPk == categoryPk);
-      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38;
+      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38; //TODO: make function to get color
       lineLabel = matchedCategory.name;
     } else {
       lineColor = Colors.black;

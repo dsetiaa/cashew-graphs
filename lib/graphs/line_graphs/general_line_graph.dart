@@ -33,7 +33,7 @@ class _LineChart extends StatefulWidget {
 }
 
 class _LineChartState extends State<_LineChart> {
-  int? touchedValue = null;
+  int? touchedValue;
 
   @override
   Widget build(BuildContext context) {

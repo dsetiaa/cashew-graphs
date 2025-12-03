@@ -1,4 +1,5 @@
 import 'package:cashew_graphs/database/tables.dart';
+import 'package:cashew_graphs/graphs/pie_charts/general_pie_chart.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -126,13 +127,26 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-            child:
-            TimeRangedSpendingLineGraph(database: database,
-                startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
-                endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
-                timeUnit: TimeUnit.day, graphType: LineGraphType.perTimeUnit,
-            )
+      body: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TimeRangedSpendingLineGraph(database: database,
+                  startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
+                  endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
+                  timeUnit: TimeUnit.day, graphType: LineGraphType.perTimeUnit,),
+                GeneralPieChart(
+                  totalSpent: 100,
+                  data: [
+                    CategoryWithTotal(category: TransactionCategory(categoryPk: "1", name: "1", dateCreated: DateTime(2025), order: 1, income: false, colour: "0xxxff0000"), total: 10),
+                    CategoryWithTotal(category: TransactionCategory(categoryPk: "2", name: "2", dateCreated: DateTime(2025), order: 1, income: false, colour: "0xxx030a78"), total: 20),
+                    CategoryWithTotal(category: TransactionCategory(categoryPk: "3", name: "3", dateCreated: DateTime(2025), order: 1, income: false, colour: "0xxx00ff00"), total: 30),
+                    CategoryWithTotal(category: TransactionCategory(categoryPk: "4", name: "4", dateCreated: DateTime(2025), order: 1, income: false, colour: "0xxx0000ff"), total: 40),
+                  ],
+                ),
+              ]
+        ),
       ),
     );
   }

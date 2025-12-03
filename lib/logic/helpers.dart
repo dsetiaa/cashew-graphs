@@ -105,3 +105,11 @@ String getDisplayTextForDate(DateTime date, TimeUnit timeUnit, DateTime rangeSta
     throw InvalidDataException("Time Unit not supported");
   }
 }
+
+T? nullIfIndexOutOfRange<T>(List<T> list, int index) {
+  if (index < 0 || index >= list.length) {
+    return null;
+  } else {
+    return list[index];
+  }
+}
