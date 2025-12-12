@@ -66,6 +66,17 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
     _loadData();
   }
 
+  // Add this method!
+  @override
+  void didUpdateWidget(TimeRangedSpendingPieChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Check if the database instance changed
+    if (oldWidget.database != widget.database) {
+      // It changed! Reload the data using the NEW database
+      _loadData();
+    }
+  }
+
   void _loadData() {
     setState(() {
       _pieChartDataFuture = _fetchDataAndProcessPieChartData();

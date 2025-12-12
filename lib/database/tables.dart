@@ -11,6 +11,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 import 'package:flutter/material.dart' show RangeValues;
 
@@ -697,29 +698,15 @@ class FinanceDatabase extends _$FinanceDatabase {
     return LazyDatabase(() async {
       // Get the app's documents directory
       final dbFolder = await getApplicationDocumentsDirectory();
-      print("path");
-      print(dbFolder.path);
-      print("path end");
-      final file = File(p.join(dbFolder.path, 'dummy-db.db'));
 
-      print("Loading DB...");
+      // 2. Define the path (Make sure this filename matches your Provider code!)
+      final dbFile = File(p.join(dbFolder.path, 'finance_app.db'));
 
-      // Load the database file from assets
-      final blob = await rootBundle.load('assets/dummy-db.db');
-      final buffer = blob.buffer;
-
-      // Write the database file to the documents directory
-      await file.writeAsBytes(
-          buffer.asUint8List(blob.offsetInBytes, blob.lengthInBytes)
-      );
-
-      print("Database copied from assets successfully");
-
-      // This is the actual SQLite file path
-      return NativeDatabase.createInBackground(file);
+      // 3. Just open it.
+      // Drift handles creating the file if it doesn't exist yet.
+      return NativeDatabase.createInBackground(dbFile);
     });
   }
-
 
   Future<void> deleteEverything() {
     return transaction(() async {

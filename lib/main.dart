@@ -1,5 +1,4 @@
 import 'package:cashew_graphs/database/tables.dart';
-import 'package:cashew_graphs/graphs/pie_charts/general_pie_chart.dart';
 import 'package:cashew_graphs/graphs/pie_charts/spending_pie_chart.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:flutter/material.dart';
@@ -7,16 +6,15 @@ import 'package:provider/provider.dart';
 
 import 'graphs/line_graphs/spending_line_graph.dart';
 import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
+import 'package:cashew_graphs/database_provider.dart';
 
 void main() {
   // await loadCurrencyJSON();
   // runApp(const MyApp());
-  final database = FinanceDatabase();
   runApp(
-  Provider<FinanceDatabase>.value(
-    value: database,  // Database instance is provided here
-    child: MyApp(),
-  ),
+    const DatabaseProvider(
+      child: MyApp(),
+    ),
   );
 }
 
@@ -71,7 +69,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  late FinanceDatabase database;
+  // late FinanceDatabase database;
   // late Future<({List<Transaction> transactions, List<TransactionCategory> categories})> _dataFuture;
 
   // Filter state
@@ -81,7 +79,6 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    database = Provider.of<FinanceDatabase>(context, listen: false);
   }
 
   void _applyDateFilter(DateTime? start, DateTime? end) {
@@ -118,6 +115,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
+    final database = Provider.of<FinanceDatabase>(context);
     return Scaffold(
       appBar: AppBar(
         // TRY THIS: Try changing the color here to a specific color (to
@@ -127,6 +125,9 @@ class _MyHomePageState extends State<MyHomePage> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
+        actions: [IconButton(onPressed: (){
+          DatabaseProvider.of(context).importDatabase();
+        }, icon: Icon(Icons.upload_file))],
       ),
       body: SingleChildScrollView(
         scrollDirection: Axis.vertical,

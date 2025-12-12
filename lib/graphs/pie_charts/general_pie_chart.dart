@@ -107,7 +107,7 @@ class _GeneralPieChartState extends State<GeneralPieChart> {
           Column(
             mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(3, (i) {
+            children: List.generate(widget.data.length >= 3? 3: widget.data.length, (i) {
               return Padding(
                 padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
                 child: Indicator(
