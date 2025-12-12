@@ -3,71 +3,62 @@ import 'package:cashew_graphs/graphs/pie_charts/general_pie_chart.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 
 // Top-level function for isolate computation
-LineGraphData _computeGraphLines(({
+List<CategoryWithTotal> _computePieSlices(({
 List<TransactionWithCategory> transactionsWithCategory,
 List<TransactionCategory> categories,
-TimeUnit timeUnit,
 DateTime startDateTime,
 DateTime endDateTime,
-LineGraphType graphType
 }) params) {
-  Map<String,List<({DateTime date, double amount})>> graphLinesDict =
-  getGraphLinesDict(
-      transactionsWithCategory: params.transactionsWithCategory,
-      timeUnit: params.timeUnit,
-      rangeStart: params.startDateTime,
-      rangeEnd: params.endDateTime
-  );
+  Map<TransactionCategory,({int transactionCount, double totalAmount})> pieChartData = {};
+  //TODO: figure out how to show subcategories
+  for(TransactionWithCategory t in params.transactionsWithCategory){
+    final existing = pieChartData[t.category];
+    if(existing != null){
+      pieChartData[t.category] = (
+        transactionCount: existing.transactionCount + 1,
+        totalAmount: existing.totalAmount + t.transaction.amount,
+      );
+    } else {
+      pieChartData[t.category] = (
+        transactionCount: 1,
+        totalAmount: t.transaction.amount,
+      );
+    }
+  }
 
-  // List<LineChartBarData> graphLines;
-  // double maxY;
-  LineGraphData incompleteLineGraphDataGraphLinesAndMaxY = getGraphLinesLineLabelsAndMaxY(
-      graphLinesDict: graphLinesDict,
-      categories: params.categories,
-      timeUnit: params.timeUnit,
-      startDateTime: params.startDateTime,
-      endDateTime: params.endDateTime,
-      graphType: params.graphType
-  );
+  List<CategoryWithTotal> pieSlices = [];
 
-  double maxX = getMaxX(startDateTime: params.startDateTime,
-      endDateTime: params.endDateTime, timeUnit: params.timeUnit);
+  pieChartData.forEach((transactionCategory, data){
+    pieSlices.add(CategoryWithTotal(category: transactionCategory, total: data.totalAmount.abs()));
+  });
 
-  LineGraphData finalLineGraphData = LineGraphData(maxX: maxX,
-      maxY: incompleteLineGraphDataGraphLinesAndMaxY.maxY,
-      graphLines: incompleteLineGraphDataGraphLinesAndMaxY.graphLines,
-      lineLabels: incompleteLineGraphDataGraphLinesAndMaxY.lineLabels);
-  return finalLineGraphData;
+  pieSlices.sort((a,b) => (a.total < b.total)? 1: 0);
+  return pieSlices;
 }
 
-class TimeRangedSpendingLineGraph extends StatefulWidget{
-  const TimeRangedSpendingLineGraph({
+class TimeRangedSpendingPieChart extends StatefulWidget{
+  const TimeRangedSpendingPieChart({
     required this.database,
     required this.startDateTime,
     required this.endDateTime,
-    required this.timeUnit,
-    required this.graphType,
     super.key
   });
 
   final FinanceDatabase database;
   final DateTime startDateTime;
   final DateTime endDateTime;
-  final TimeUnit timeUnit;
-  final LineGraphType graphType;
   @override
-  State<TimeRangedSpendingLineGraph> createState() => _TimeRangedSpendingLineGraphState();
+  State<TimeRangedSpendingPieChart> createState() => _TimeRangedSpendingPieChartState();
 }
 
-class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGraph> {
+class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart> {
 
 
-  late Future<LineGraphData> _lineGraphDataFuture;
+  late Future<List<CategoryWithTotal>> _pieChartDataFuture;
 
   @override
   void initState() {
@@ -77,11 +68,11 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
 
   void _loadData() {
     setState(() {
-      _lineGraphDataFuture = _fetchDataAndProcessLineGraphData();
+      _pieChartDataFuture = _fetchDataAndProcessPieChartData();
     });
   }
 
-  Future<LineGraphData> _fetchDataAndProcessLineGraphData() async {
+  Future<List<CategoryWithTotal>> _fetchDataAndProcessPieChartData() async {
     // Fetch data from database
     final results = await Future.wait([
       widget.database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
@@ -93,21 +84,18 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
     final transactionsWithCategory = results[0] as List<TransactionWithCategory>;
     final categories = results[1] as List<TransactionCategory>;
 
-    // Process graph lines in a separate isolate using compute
-    return await compute(_computeGraphLines, (
+    return await compute(_computePieSlices, (
     transactionsWithCategory: transactionsWithCategory,
     categories: categories,
-    timeUnit: widget.timeUnit,
     startDateTime: widget.startDateTime,
     endDateTime: widget.endDateTime,
-    graphType: widget.graphType
     ));
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<LineGraphData>(
-      future: _lineGraphDataFuture,
+    return FutureBuilder<List<CategoryWithTotal>>(
+      future: _pieChartDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -117,16 +105,11 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        final lineGraphData = snapshot.data!;
+        final pieChartData = snapshot.data!;
 
         return GeneralPieChart(
           totalSpent: 100,
-          data: [
-            CategoryWithTotal(category: TransactionCategory(categoryPk: "1", name: "1", dateCreated: DateTime(2025), order: 1, income: false), total: 10),
-            CategoryWithTotal(category: TransactionCategory(categoryPk: "2", name: "2", dateCreated: DateTime(2025), order: 1, income: false), total: 20),
-            CategoryWithTotal(category: TransactionCategory(categoryPk: "3", name: "3", dateCreated: DateTime(2025), order: 1, income: false), total: 30),
-            CategoryWithTotal(category: TransactionCategory(categoryPk: "4", name: "4", dateCreated: DateTime(2025), order: 1, income: false), total: 40),
-          ],
+          data: pieChartData,
         );
         //   (
         //   graphTitle: "Monthly Per Day",
