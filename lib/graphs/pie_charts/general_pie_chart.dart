@@ -2,51 +2,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
+import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
+import 'package:cashew_graphs/presentation/resources/app_typography.dart';
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
-
-class Indicator extends StatelessWidget {
-  const Indicator({
-    super.key,
-    required this.color,
-    required this.text,
-    required this.isSquare,
-    this.size = 16,
-    this.textColor,
-  });
-  final Color color;
-  final String text;
-  final bool isSquare;
-  final double size;
-  final Color? textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: isSquare ? BoxShape.rectangle : BoxShape.circle,
-            color: color,
-          ),
-        ),
-        const SizedBox(
-          width: 4,
-        ),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: textColor,
-          ),
-        )
-      ],
-    );
-  }
-}
 
 
 class GeneralPieChart extends StatefulWidget {
@@ -64,21 +23,23 @@ class GeneralPieChart extends StatefulWidget {
 
 class _GeneralPieChartState extends State<GeneralPieChart> {
   int touchedIndex = -1;
-  int showLabels = 0;
+
+  Color _getCategoryColor(int index) {
+    return widget.data[index].category.colour != null
+        ? Color(int.parse(widget.data[index].category.colour!.substring(4), radix: 16) + 0xFF000000)
+        : Theme.of(context).colorScheme.primary;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.3,
-      child: Row(
-        children: <Widget>[
-          const SizedBox(
-            height: 18,
-          ),
-          Expanded(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: PieChart(
+    return Column(
+      children: [
+        AspectRatio(
+          aspectRatio: 1.2,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              PieChart(
                 PieChartData(
                   pieTouchData: PieTouchData(
                     touchCallback: (FlTouchEvent event, pieTouchResponse) {
@@ -89,41 +50,81 @@ class _GeneralPieChartState extends State<GeneralPieChart> {
                           touchedIndex = -1;
                           return;
                         }
-                        touchedIndex = pieTouchResponse
-                            .touchedSection!.touchedSectionIndex;
+                        touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
                       });
                     },
                   ),
-                  borderData: FlBorderData(
-                    show: false,
-                  ),
-                  sectionsSpace: 0,
-                  centerSpaceRadius: 40,
+                  borderData: FlBorderData(show: false),
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 60,
                   sections: showingSections(),
+                  startDegreeOffset: -90,
                 ),
               ),
+              // Center content - total amount
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Total',
+                    style: AppTypography.labelMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '₹${widget.totalSpent.toStringAsFixed(0)}',
+                    style: AppTypography.titleLarge,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // Horizontal legend
+        Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.sm,
+          alignment: WrapAlignment.center,
+          children: List.generate(
+            widget.data.length >= 5 ? 5 : widget.data.length,
+            (i) => _buildLegendItem(i),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(int index) {
+    final color = _getCategoryColor(index);
+    final isSelected = touchedIndex == index;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
             ),
           ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(widget.data.length >= 3? 3: widget.data.length, (i) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
-                child: Indicator(
-                  color: widget.data[i].category.colour != null ?
-                Color(int.parse(widget.data[i].category.colour!.substring(4), radix: 16) + 0xFF000000) //TODO: make function to get_color(3)
-                  :
-              Theme.of(context).colorScheme.primary,
-              text: widget.data[i].category.name,
-                  isSquare: true,
-                ),
-              );
-            }
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            widget.data[index].category.name,
+            style: AppTypography.legendText.copyWith(
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             ),
-          ),
-          const SizedBox(
-            width: 28,
           ),
         ],
       ),
@@ -192,68 +193,30 @@ class _GeneralPieChartState extends State<GeneralPieChart> {
   // }
 
   List<PieChartSectionData> showingSections() {
-    double totalPercentAccumulated = 0;
     return List.generate(widget.data.length, (i) {
       final bool isTouched = i == touchedIndex;
-      final double radius =
-          isTouched
-          ? 106.0
-          : 100.0;
-          // : isTouched
-          // ? 146.0
-          // : 136.0;
-      final double widgetScale = isTouched ? 1.3 : 1.0;
-      bool isTouchingSameColorSection = false;
-      if (nullIfIndexOutOfRange(widget.data, i - 1)?.category?.colour ==
-          widget.data[i].category.colour ||
-          nullIfIndexOutOfRange(widget.data, i + 1)?.category?.colour ==
-              widget.data[i].category.colour) {
-        isTouchingSameColorSection = true;
-      }
+      final double radius = isTouched ? 55.0 : 50.0;
+      final Color color = _getCategoryColor(i);
 
-      final Color color = widget.data[i].category.colour != null ?
-      Color(int.parse(widget.data[i].category.colour!.substring(4), radix: 16) + 0xFF000000) //TODO: make function to get_color(2)
-          :
-      Theme.of(context).colorScheme.primary;
-
-      // );
-      // final Color color = dynamicPastel(
-      //   context,
-      //   HexColor(widget.data[i].category.colour,
-      //       defaultColor: Theme.of(context).colorScheme.primary),
-      //   amountLight: 0.3 +
-      //       (isTouchingSameColorSection && i % 3 == 0 ? 0.2 : 0) +
-      //       (isTouchingSameColorSection && i % 3 == 1 ? 0.35 : 0),
-      //   amountDark: 0.1 +
-      //       (isTouchingSameColorSection && i % 3 == 0 ? 0.2 : 0) +
-      //       (isTouchingSameColorSection && i % 3 == 1 ? 0.35 : 0),
-      // );
       double percent = widget.totalSpent == 0
           ? 0
           : (widget.data[i].total / widget.totalSpent * 100).abs();
-      totalPercentAccumulated = totalPercentAccumulated + percent;
+
       return PieChartSectionData(
         color: color,
         value: widget.totalSpent == 0
             ? 5
             : (widget.data[i].total / widget.totalSpent).abs(),
-        title: "",
+        title: isTouched ? '${percent.toStringAsFixed(1)}%' : '',
         radius: radius,
-        badgeWidget: Text(widget.data[i].category.name),
-        // badgeWidget: _Badge(
-        //   totalPercentAccumulated: totalPercentAccumulated,
-        //   showLabels: i < showLabels,
-        //   scale: widgetScale,
-        //   color: color,
-        //   iconName: widget.data[i].category.iconName ?? "",
-        //   categoryColor: HexColor(widget.data[i].category.colour,
-        //       defaultColor: Theme.of(context).colorScheme.primary),
-        //   emojiIconName: widget.data[i].category.emojiIconName,
-        //   percent: percent,
-        //   isTouched: isTouched,
-        // ),
-        titlePositionPercentageOffset: 1.4,
-        badgePositionPercentageOffset: .98,
+        titleStyle: AppTypography.labelMedium.copyWith(
+          color: AppColors.contentColorWhite,
+          fontWeight: FontWeight.w600,
+        ),
+        titlePositionPercentageOffset: 0.55,
+        borderSide: isTouched
+            ? const BorderSide(color: AppColors.contentColorWhite, width: 2)
+            : BorderSide.none,
       );
     });
   }

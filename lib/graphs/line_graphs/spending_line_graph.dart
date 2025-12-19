@@ -1,5 +1,8 @@
 import 'package:cashew_graphs/database/tables.dart';
-import 'package:drift/drift.dart';
+import 'package:cashew_graphs/presentation/resources/app_colours.dart';
+import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
+import 'package:cashew_graphs/presentation/resources/app_typography.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
@@ -120,11 +123,43 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
       future: _lineGraphDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return SizedBox(
+            height: 280,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Loading chart...',
+                    style: AppTypography.labelMedium,
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return SizedBox(
+            height: 280,
+            child: Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.contentColorRed,
+                ),
+              ),
+            ),
+          );
         }
 
         final lineGraphData = snapshot.data!;

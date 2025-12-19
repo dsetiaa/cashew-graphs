@@ -1,5 +1,7 @@
 import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
+import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
+import 'package:cashew_graphs/presentation/resources/app_typography.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:flutter/material.dart';
@@ -58,6 +60,7 @@ class _LineChartState extends State<_LineChart> {
   LineTouchData get lineTouchData => LineTouchData(
     handleBuiltInTouches: true,
     touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
+
       if (touchResponse != null && touchResponse.lineBarSpots != null) {
         // Filter out transparent lines and sort by y value
         final validSpots = touchResponse.lineBarSpots!
@@ -66,100 +69,86 @@ class _LineChartState extends State<_LineChart> {
           ..sort((a, b) => b.y.compareTo(a.y));
 
         // Pass top 3 lines to parent
-        widget.onTouchedLines(validSpots.take(3).toList());
+        widget.onTouchedLines(validSpots.toList());
       } else {
         widget.onTouchedLines(null);
       }
     },
     touchTooltipData: LineTouchTooltipData(
-        fitInsideHorizontally: true,
-        fitInsideVertically: true,
-        getTooltipColor: (touchedSpot) =>
-            Colors.white.withValues(alpha: 0.1),
-        getTooltipItems: (List<LineBarSpot> touchedSpots) {
-          return touchedSpots.asMap().entries.map((entry) {
-            LineBarSpot lineBarSpot = entry.value;
-            int index = entry.key;
-            // hide touch data for the overage line
-            if (lineBarSpot.bar.color == Colors.transparent) {
-              return null;
-            }
-
-            String lineTouchToolTipHeading = "${widget.getLineTouchToolTipHeadingFunction(lineBarSpot.x)}\n";
-
-            return LineTooltipItem(
-              "",
-              TextStyle(),
-              children: [
-                // if (dateRange != null &&
-                //     index == 0)
-                if (index == 0)
-                  TextSpan(
-                    text: lineTouchToolTipHeading,
-                    style: TextStyle(
-                      // color: getColor(context, "black").withOpacity(0.8),
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      fontFamilyFallback: ['Inter'],
-                    ),
-                  ),
-                TextSpan(
-                  //TODO: implement convert to money, checkout provider
-                  // text: convertToMoney(
-                  //     Provider.of<AllWallets>(context, listen: false),
-                  //     lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y),
-                  text: (index < 3)? "${lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y}": "",
-                  style: TextStyle(
-                    // color: lineBarSpot.bar.color ==
-                    //     lightenPastel(widget.color, amount: 0.3)
-                    //     ? getColor(context, "black").withOpacity(0.8)
-                    //     : lineBarSpot.bar.color,
-                    color: lineBarSpot.bar.color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    fontFamilyFallback: ['Inter'],
-                    height: index == 0 &&
-                        touchedSpots.length > 1
-                        ? 1.8
-                        : null,
-                  ),
-                ),
-              ],
-            );
-          }).toList();
-          // },
-          if (touchedSpots.isNotEmpty) {
-            return [
-              LineTooltipItem(touchedSpots[0].x.toString(), TextStyle(
-                  color: Colors.deepPurpleAccent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold))
-            ] + touchedSpots.map((LineBarSpot touchedSpot) {
-              final textStyle = TextStyle(
-                color: touchedSpot.bar.gradient?.colors.first ??
-                    touchedSpot.bar.color ??
-                    Colors.blueGrey,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              );
-              return LineTooltipItem(touchedSpot.y.toString(), textStyle);
-            }).toList();
-          } else {
-            return touchedSpots.map((LineBarSpot touchedSpot) {
-              final textStyle = TextStyle(
-                color: touchedSpot.bar.gradient?.colors.first ??
-                    touchedSpot.bar.color ??
-                    Colors.blueGrey,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              );
-              return LineTooltipItem(touchedSpot.y.toString(), textStyle);
-            }).toList();
+      fitInsideHorizontally: true,
+      fitInsideVertically: true,
+      showOnTopOfTheChartBoxArea: true,
+      tooltipPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      // tooltipMargin: AppSpacing.sm,
+      getTooltipColor: (touchedSpot) => AppColors.chartTooltipBackground.withValues(alpha: 0.7),
+      tooltipBorder: BorderSide(
+        color: AppColors.primary.withOpacity(0.2),
+        width: 1,
+      ),
+      getTooltipItems: (List<LineBarSpot> touchedSpots) {
+        return touchedSpots.asMap().entries.map((entry) {
+          LineBarSpot lineBarSpot = entry.value;
+          int index = entry.key;
+          if (lineBarSpot.bar.color == Colors.transparent) {
+            return null;
           }
-        }
+
+          if (!(index < 3 || lineBarSpot.y > 0)) {
+            return null;
+          }
+
+          String lineTouchToolTipHeading = "${widget.getLineTouchToolTipHeadingFunction(lineBarSpot.x)}\n";
+
+          return LineTooltipItem(
+            "",
+            const TextStyle(),
+            children: [
+              if (index == 0)
+                TextSpan(
+                  text: lineTouchToolTipHeading,
+                  style: AppTypography.chartTooltipTitle,
+                ),
+              TextSpan(
+                //TODO: implement convert to money, checkout provider
+                // text: convertToMoney(
+                //     Provider.of<AllWallets>(context, listen: false),
+                //     lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y),
+                text: (index < 3 || lineBarSpot.y > 0) ? "₹${lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y.toStringAsFixed(2)}" : "",
+                style: AppTypography.chartTooltipValue.copyWith(
+                  color: lineBarSpot.bar.color,
+                  height: index == 0 && touchedSpots.length > 1 ? 1.8 : null,
+                ),
+              ),
+            ],
+          );
+        }).toList();
+      },
     ),
     enabled: true,
+    // getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
+    //   return spotIndexes.map((spotIndex) {
+    //     return TouchedSpotIndicatorData(
+    //       FlLine(
+    //         color: AppColors.primary.withOpacity(0.3),
+    //         strokeWidth: 1,
+    //         dashArray: [5, 5],
+    //       ),
+    //       FlDotData(
+    //         getDotPainter: (spot, percent, barData, index) {
+    //           return FlDotCirclePainter(
+    //             radius: 5,
+    //             color: barData.color ?? AppColors.primary,
+    //             strokeWidth: 2,
+    //             strokeColor: AppColors.itemsBackground,
+    //           );
+    //         },
+    //       ),
+    //     );
+    //   }).toList();
+    // },
   );
 
   FlTitlesData get titlesData2 => FlTitlesData(
@@ -191,17 +180,41 @@ class _LineChartState extends State<_LineChart> {
     getTitlesWidget: widget.bottomTitleWidgets,
   );
 
-  FlGridData get gridData => const FlGridData(show: true);
+  FlGridData get gridData => FlGridData(
+    show: true,
+    drawVerticalLine: true,
+    drawHorizontalLine: true,
+    // horizontalInterval: getStepSizeInScale(widget.maxY, getScaleInPowerOf10(widget.maxY)).toDouble(),
+    // verticalInterval: getS,
+    getDrawingHorizontalLine: (value) {
+      return FlLine(
+        color: AppColors.mainGridLineColor,
+        strokeWidth: 1,
+        dashArray: [5, 5],
+      );
+    },
+    getDrawingVerticalLine: (value) {
+      return FlLine(
+        color: AppColors.mainGridLineColor,
+        strokeWidth: 1,
+        dashArray: [5, 5],
+      );
+    },
+  );
 
   FlBorderData get borderData => FlBorderData(
     show: true,
-    border: Border(
+    border: const Border(
       bottom: BorderSide(
-        color: AppColors.primary.withValues(alpha: 0.3), width: 3,),
+        color: AppColors.chartBorder,
+        width: 1,
+      ),
       left: BorderSide(
-          color: AppColors.primary.withValues(alpha: 0.3), width: 3),
-      right: const BorderSide(color: Colors.transparent),
-      top: const BorderSide(color: Colors.transparent),
+        color: AppColors.chartBorder,
+        width: 1,
+      ),
+      right: BorderSide.none,
+      top: BorderSide.none,
     ),
   );
 }
@@ -240,13 +253,11 @@ class GeneralLineChartState extends State<GeneralLineChart> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SizedBox(
-          height: 37,
-        ),
+        const SizedBox(height: AppSpacing.md),
         AspectRatio(
-          aspectRatio: 3/2,
+          aspectRatio: 3 / 2,
           child: Padding(
-            padding: const EdgeInsets.only(right: 16, left: 6),
+            padding: const EdgeInsets.only(right: AppSpacing.md, left: AppSpacing.sm),
             child: _LineChart(
               graphLines: widget.graphLines,
               maxX: widget.maxX,
@@ -262,65 +273,66 @@ class GeneralLineChartState extends State<GeneralLineChart> {
             ),
           ),
         ),
-        const SizedBox(
-          height: 17,
-        ),
-        // Legend
-        if (touchedLines != null && touchedLines!.isNotEmpty)
-          const SizedBox(height: 8),
-        if (touchedLines != null && touchedLines!.isNotEmpty)
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            crossAxisCount: 2,
-            childAspectRatio: 5,
-            // mainAxisSpacing: 4,
-            // crossAxisSpacing: 8,
-            children: touchedLines!.asMap().entries.map((entry) {
-                final spot = entry.value;
-                final lineIndex = spot.barIndex;
-                final label = widget.lineLabels[lineIndex];
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 3,
-                        color: spot.bar.color,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$label: ${spot.y == -1e-14 ? 0 : spot.y.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 12,
+        const SizedBox(height: AppSpacing.md),
+        // Animated Legend
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          child: touchedLines != null && touchedLines!.isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  child: Wrap(
+                    spacing: AppSpacing.md,
+                    runSpacing: AppSpacing.sm,
+                    children: touchedLines!.map((spot) {
+                      final lineIndex = spot.barIndex;
+                      final label = widget.lineLabels[lineIndex];
+                      if(spot.y == 0 && lineIndex >= 3) return Container();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                          vertical: AppSpacing.xs,
                         ),
-                      ),
-                    ],
+                        decoration: BoxDecoration(
+                          color: spot.bar.color?.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                          border: Border.all(
+                            color: spot.bar.color?.withOpacity(0.3) ?? Colors.transparent,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: spot.bar.color,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              '$label: ₹${spot.y == -1e-14 ? "0" : spot.y.toStringAsFixed(2)}',
+                              style: AppTypography.legendText.copyWith(
+                                color: spot.bar.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }).toList(),
-          ),
-        // const SizedBox(
-        //   height: 17,
-        // ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(height: AppSpacing.md),
         Text(
           widget.graphTitle,
-          style: TextStyle(
-            color: AppColors.primary,
-            fontSize: 27,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2,
-          ),
+          style: AppTypography.chartTitle,
           textAlign: TextAlign.center,
         ),
-        const SizedBox(
-          height: 17,
-        ),
+        const SizedBox(height: AppSpacing.sm),
       ],
     );
   }

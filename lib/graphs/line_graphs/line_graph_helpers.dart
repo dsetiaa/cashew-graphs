@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/logic/constants.dart' as Constants;
+import 'package:cashew_graphs/presentation/resources/app_typography.dart';
 
 enum LineGraphType {
   perTimeUnit,
@@ -178,11 +179,23 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
         LineChartBarData(
             isCurved: true,
             curveSmoothness: 0,
-            color: lineColor.withValues(alpha: 0.5),
-            barWidth: 3,
-            isStrokeCapRound: false,
+            color: lineColor.withOpacity(0.9),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
             dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(show: false),
+            belowBarData: BarAreaData(
+              show: false,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  lineColor.withOpacity(0.25),
+                  lineColor.withOpacity(0.05),
+                  lineColor.withOpacity(0.0),
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
             spots:spots
         )
     );
@@ -195,13 +208,7 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
 }
 
 Widget getXAxisTitleWidgets(double value, TitleMeta meta, TimeUnit timeUnit, DateTime rangeStart, DateTime rangeEnd) {
-  // startDate, endDate -> using max-1
-  // if in same year 12 Oct, 16 Dec
-  // else 12/10/25, 16/12/25
-  const style = TextStyle(
-    fontWeight: FontWeight.bold,
-    fontSize: 16,
-  );
+  final style = AppTypography.chartAxisLabel;
   Widget text;
   int rangeEndIndex = getXCoordinateForDateInRange(date: rangeEnd, timeUnit: timeUnit, rangeStart: rangeStart);
   int midPoint = ((1+rangeEndIndex)/2).floor();
@@ -222,7 +229,7 @@ Widget getXAxisTitleWidgets(double value, TitleMeta meta, TimeUnit timeUnit, Dat
 
   return SideTitleWidget(
     meta: meta,
-    space: 10,
+    space: 8,
     child: text,
   );
 }
@@ -236,17 +243,12 @@ int getStepSizeInScale(double max, int scalePower){
   return pow(10, scalePower).toInt();
 }
 
-//TODO: dynamically adjust this
 Widget getYAxisTitleWidgets(double value, TitleMeta meta) {
-  const style = TextStyle(
-    fontWeight: FontWeight.bold,
-    fontSize: 14,
-  );
+  final style = AppTypography.chartAxisLabel;
 
   double max = meta.max;
   int scale = getScaleInPowerOf10(max);
   int yAxisStep = getStepSizeInScale(max, scale);
-  // String text = getDisplayValueForAmount(scale);
 
   String text;
   List<int> displayValues = List<int>.generate(5, (i) => (i+1)*yAxisStep);

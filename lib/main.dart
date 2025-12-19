@@ -1,6 +1,9 @@
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/graphs/pie_charts/spending_pie_chart.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
+import 'package:cashew_graphs/presentation/resources/app_colours.dart';
+import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
+import 'package:cashew_graphs/presentation/resources/app_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -21,30 +24,13 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      title: 'Spending Analytics',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme,
+      home: const MyHomePage(title: 'Spending Analytics'),
     );
   }
 }
@@ -109,40 +95,72 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     final database = Provider.of<FinanceDatabase>(context);
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-        actions: [IconButton(onPressed: (){
-          DatabaseProvider.of(context).importDatabase();
-        }, icon: Icon(Icons.upload_file))],
+        title: Text(
+          widget.title,
+          style: AppTypography.titleMedium,
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              DatabaseProvider.of(context).importDatabase();
+            },
+            icon: const Icon(
+              Icons.upload_file_outlined,
+              color: AppColors.mainTextColor2,
+            ),
+            tooltip: 'Import Database',
+          ),
+          const SizedBox(width: AppSpacing.sm,),
+        ],
       ),
-      body: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TimeRangedSpendingLineGraph(database: database,
-                  startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
-                  endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
-                  timeUnit: TimeUnit.day, graphType: LineGraphType.perTimeUnit,),
-                TimeRangedSpendingPieChart(database: database,
-                  startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
-                  endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Line Chart Card
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.itemsBackground,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(
+                  color: AppColors.chartBorder.withOpacity(0.3),
+                  width: 1,
                 ),
-              ]
+              ),
+              padding: const EdgeInsets.all(AppSpacing.cardPadding),
+              child: TimeRangedSpendingLineGraph(
+                database: database,
+                startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
+                endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
+                timeUnit: TimeUnit.day,
+                graphType: LineGraphType.perTimeUnit,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sectionGap),
+            // Pie Chart Card
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.itemsBackground,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(
+                  color: AppColors.chartBorder.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              padding: const EdgeInsets.all(AppSpacing.cardPadding),
+              child: TimeRangedSpendingPieChart(
+                database: database,
+                startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
+                endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
+              ),
+            ),
+          ],
+        ),
         ),
       ),
     );

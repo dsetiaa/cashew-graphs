@@ -1,6 +1,9 @@
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/graphs/pie_charts/general_pie_chart.dart';
-import 'package:drift/drift.dart';
+import 'package:cashew_graphs/presentation/resources/app_colours.dart';
+import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
+import 'package:cashew_graphs/presentation/resources/app_typography.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
@@ -109,29 +112,52 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
       future: _pieChartDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return SizedBox(
+            height: 320,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Loading chart...',
+                    style: AppTypography.labelMedium,
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return SizedBox(
+            height: 320,
+            child: Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.contentColorRed,
+                ),
+              ),
+            ),
+          );
         }
 
         final pieChartData = snapshot.data!;
+        final totalSpent = pieChartData.fold<double>(0, (sum, item) => sum + item.total);
 
         return GeneralPieChart(
-          totalSpent: 100,
+          totalSpent: totalSpent,
           data: pieChartData,
         );
-        //   (
-        //   graphTitle: "Monthly Per Day",
-        //   graphLines: lineGraphData.graphLines,
-        //   lineLabels: lineGraphData.lineLabels,
-        //   maxX: lineGraphData.maxX,
-        //   maxY: lineGraphData.maxY,
-        //   leftTitleWidgets: getYAxisTitleWidgets,
-        //   bottomTitleWidgets: (value, meta) => getXAxisTitleWidgets(value, meta, widget.timeUnit, widget.startDateTime, widget.endDateTime),
-        //   getLineTouchToolTipHeadingFunction: (x) => getLineTouchToolTipHeading(x, widget.startDateTime, widget.endDateTime, widget.timeUnit),
-        // );
       },
     );
   }
