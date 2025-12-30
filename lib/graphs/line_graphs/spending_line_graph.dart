@@ -16,14 +16,18 @@ LineGraphData _computeGraphLines(({
   TimeUnit timeUnit,
   DateTime startDateTime,
   DateTime endDateTime,
-  LineGraphType graphType
+  LineGraphType graphType,
+  bool showTotal,
+  Set<String>? selectedCategoriesPks
 }) params) {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict =
       getGraphLinesDict(
         transactionsWithCategory: params.transactionsWithCategory,
         timeUnit: params.timeUnit,
         rangeStart: params.startDateTime,
-        rangeEnd: params.endDateTime
+        rangeEnd: params.endDateTime,
+        showTotal: params.showTotal,
+        selectedCategoriesPks: params.selectedCategoriesPks
       );
 
   // List<LineChartBarData> graphLines;
@@ -34,7 +38,9 @@ LineGraphData _computeGraphLines(({
     timeUnit: params.timeUnit,
     startDateTime: params.startDateTime,
     endDateTime: params.endDateTime,
-    graphType: params.graphType
+    graphType: params.graphType,
+    showTotal: params.showTotal,
+    selectedCategories: params.selectedCategoriesPks
   );
 
   double maxX = getMaxX(startDateTime: params.startDateTime,
@@ -54,6 +60,9 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
     required this.endDateTime,
     required this.timeUnit,
     required this.graphType,
+    required this.showTotal,
+    required this.transactionNameFilter,
+    this.selectedCategoriesPks,
     super.key
   });
 
@@ -62,6 +71,10 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
   final DateTime endDateTime;
   final TimeUnit timeUnit;
   final LineGraphType graphType;
+  final bool showTotal;
+  /// null = all categories, empty = none, non-empty = specific categories
+  final Set<String>? selectedCategoriesPks;
+  final String transactionNameFilter;
   @override
   State<TimeRangedSpendingLineGraph> createState() => _TimeRangedSpendingLineGraphState();
 }
@@ -77,13 +90,19 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
     _loadData();
   }
 
-  // Add this method!
   @override
   void didUpdateWidget(TimeRangedSpendingLineGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Check if the database instance changed
-    if (oldWidget.database != widget.database) {
-      // It changed! Reload the data using the NEW database
+    // Check if any parameters changed that require reloading data
+    if (oldWidget.database != widget.database ||
+        oldWidget.startDateTime != widget.startDateTime ||
+        oldWidget.endDateTime != widget.endDateTime ||
+        oldWidget.timeUnit != widget.timeUnit ||
+        oldWidget.graphType != widget.graphType ||
+        oldWidget.showTotal != widget.showTotal ||
+        oldWidget.selectedCategoriesPks != widget.selectedCategoriesPks ||
+        oldWidget.transactionNameFilter != widget.transactionNameFilter
+    ) {
       _loadData();
     }
   }
@@ -96,9 +115,16 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
 
   Future<LineGraphData> _fetchDataAndProcessLineGraphData() async {
     // Fetch data from database
+    final nameFilter = widget.transactionNameFilter;
     final results = await Future.wait([
       widget.database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
-        (t) => t.dateCreated.isBetweenValues(widget.startDateTime, widget.endDateTime)
+        (t) {
+          var filter = t.dateCreated.isBetweenValues(widget.startDateTime, widget.endDateTime);
+          if (nameFilter.isNotEmpty) {
+            filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
+          }
+          return filter;
+        }
       ),
       widget.database.getAllCategories(),
     ]);
@@ -113,7 +139,9 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
       timeUnit: widget.timeUnit,
       startDateTime: widget.startDateTime,
       endDateTime: widget.endDateTime,
-      graphType: widget.graphType
+      graphType: widget.graphType,
+      showTotal: widget.showTotal,
+      selectedCategoriesPks: widget.selectedCategoriesPks
     ));
   }
 

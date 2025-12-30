@@ -29,13 +29,25 @@ class LineGraphData{
 }
 
 
+/// Returns true if the category should be shown based on selection.
+/// null = all categories, empty = none, non-empty = specific categories
+bool showCategory({required String categoryPk, required Set<String>? selectedCategoriesPks}){
+  if (selectedCategoriesPks == null) return true; // null = all selected
+  return selectedCategoriesPks.contains(categoryPk);
+}
+
 
 Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
   required List<TransactionWithCategory> transactionsWithCategory,
-  required TimeUnit timeUnit, required DateTime rangeStart, required DateTime rangeEnd})
+  required TimeUnit timeUnit, required DateTime rangeStart, required DateTime rangeEnd,
+  required bool showTotal, required Set<String>? selectedCategoriesPks})
 {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict = {};
   for(TransactionWithCategory twc in transactionsWithCategory) {
+    if(!showCategory(categoryPk: twc.category.categoryPk,
+        selectedCategoriesPks: selectedCategoriesPks)){
+      continue;
+    }
     for (String categoryPk in [twc.category.categoryPk, Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK]) {
       //If some data points exist for that category
       if (graphLinesDict[categoryPk] != null) {
@@ -140,7 +152,8 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
   required Map<String,List<({DateTime date, double amount})>> graphLinesDict,
   required List<TransactionCategory> categories, required DateTime startDateTime,
   required DateTime endDateTime, required TimeUnit timeUnit,
-  required LineGraphType graphType})
+  required LineGraphType graphType, required bool showTotal,
+  required Set<String>? selectedCategories})
 {
   List<LineChartBarData> graphLines = [];
   List<String> lineLabels = [];
@@ -149,14 +162,17 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
   graphLinesDict.forEach((categoryPk, perTimeUnitDataList){
     Color lineColor;
     String lineLabel;
+    bool showLine;
     if(categoryPk != Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK) {
       TransactionCategory matchedCategory = categories.firstWhere((tk) =>
       tk.categoryPk == categoryPk);
       lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38; //TODO: make function to get color
       lineLabel = matchedCategory.name;
+      showLine = showCategory(categoryPk: matchedCategory.categoryPk, selectedCategoriesPks: selectedCategories);
     } else {
       lineColor = Colors.black;
       lineLabel = "TOTAL";
+      showLine = showTotal;
     }
 
     List<FlSpot> spots = [];
@@ -167,7 +183,7 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
           yCoordinate += spots.last.y;
         }
       }
-      maxY = max(yCoordinate, maxY);
+      if(showLine) maxY = max(yCoordinate, maxY);
       spots.add(FlSpot(
           getXCoordinateForDateInRange(date: dataPoint.date,
               timeUnit: timeUnit, rangeStart: startDateTime).toDouble(),
@@ -177,6 +193,7 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
 
     graphLines.add(
         LineChartBarData(
+            show: showLine,
             isCurved: true,
             curveSmoothness: 0,
             color: lineColor.withOpacity(0.9),

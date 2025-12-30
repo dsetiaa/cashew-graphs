@@ -4,11 +4,11 @@ import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
 import 'package:cashew_graphs/presentation/resources/app_typography.dart';
+import 'package:cashew_graphs/presentation/widgets/filter_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'graphs/line_graphs/spending_line_graph.dart';
-import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 import 'package:cashew_graphs/database_provider.dart';
 
 void main() {
@@ -54,40 +54,41 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
-  // late FinanceDatabase database;
-  // late Future<({List<Transaction> transactions, List<TransactionCategory> categories})> _dataFuture;
-
-  // Filter state
-  DateTime? _startDate;
-  DateTime? _endDate;
+  late FilterSettings _filterSettings;
+  List<TransactionCategory> _categories = [];
 
   @override
   void initState() {
     super.initState();
+    final monthRange = getCurrentMonthRange();
+    _filterSettings = FilterSettings(
+      startDate: monthRange.start,
+      endDate: monthRange.end,
+      showTotal: true,
+    );
   }
 
-  void _applyDateFilter(DateTime? start, DateTime? end) {
-    setState(() {
-      _startDate = start;
-      _endDate = end;
-    });
+  Future<void> _loadCategories(FinanceDatabase database) async {
+    if (_categories.isEmpty) {
+      _categories = await database.getAllCategories();
+    }
   }
 
-  Future<void> _selectDate(bool isStart) async {
-    final date = await showDatePicker(
+  Future<void> _showFilterDialog(FinanceDatabase database) async {
+    await _loadCategories(database);
+
+    if (!mounted) return;
+
+    final result = await FilterDialog.show(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      initialSettings: _filterSettings,
+      categories: _categories,
     );
 
-    if (date != null) {
-      if (isStart) {
-        _applyDateFilter(date, _endDate);
-      } else {
-        _applyDateFilter(_startDate, date);
-      }
+    if (result != null) {
+      setState(() {
+        _filterSettings = result;
+      });
     }
   }
 
@@ -103,6 +104,15 @@ class _MyHomePageState extends State<MyHomePage> {
           style: AppTypography.titleMedium,
         ),
         actions: [
+          IconButton(
+            onPressed: () => _showFilterDialog(database),
+            icon: const Icon(
+              Icons.filter_alt_rounded,
+              color: AppColors.mainTextColor2,
+            ),
+            tooltip: 'Filter',
+          ),
+          const SizedBox(width: AppSpacing.sm,),
           IconButton(
             onPressed: () {
               DatabaseProvider.of(context).importDatabase();
@@ -128,17 +138,20 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: AppColors.itemsBackground,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                 border: Border.all(
-                  color: AppColors.chartBorder.withOpacity(0.3),
+                  color: AppColors.chartBorder.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
               padding: const EdgeInsets.all(AppSpacing.cardPadding),
               child: TimeRangedSpendingLineGraph(
                 database: database,
-                startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
-                endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
-                timeUnit: TimeUnit.day,
-                graphType: LineGraphType.perTimeUnit,
+                startDateTime: _filterSettings.startDate,
+                endDateTime: _filterSettings.endDate,
+                timeUnit: _filterSettings.timeUnit,
+                graphType: _filterSettings.lineGraphType,
+                showTotal: _filterSettings.showTotal,
+                selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+                transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
               ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
@@ -148,15 +161,17 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: AppColors.itemsBackground,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                 border: Border.all(
-                  color: AppColors.chartBorder.withOpacity(0.3),
+                  color: AppColors.chartBorder.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
               padding: const EdgeInsets.all(AppSpacing.cardPadding),
               child: TimeRangedSpendingPieChart(
                 database: database,
-                startDateTime: DateTime(2025, 9, 1, 0, 0, 0, 0, 0),
-                endDateTime: DateTime(2025, 10 + 1, 1).subtract(const Duration(milliseconds: 1)),
+                startDateTime: _filterSettings.startDate,
+                endDateTime: _filterSettings.endDate,
+                selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+                transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
               ),
             ),
           ],

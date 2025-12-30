@@ -15,6 +15,7 @@ List<TransactionWithCategory> transactionsWithCategory,
 List<TransactionCategory> categories,
 DateTime startDateTime,
 DateTime endDateTime,
+Set<String>? selectedCategoriesPks,
 }) params) {
   Map<TransactionCategory,({int transactionCount, double totalAmount})> pieChartData = {};
   //TODO: figure out how to show subcategories
@@ -36,7 +37,10 @@ DateTime endDateTime,
   List<CategoryWithTotal> pieSlices = [];
 
   pieChartData.forEach((transactionCategory, data){
-    pieSlices.add(CategoryWithTotal(category: transactionCategory, total: data.totalAmount.abs()));
+    if (showCategory(categoryPk: transactionCategory.categoryPk, selectedCategoriesPks: params.selectedCategoriesPks)){
+      pieSlices.add(CategoryWithTotal(
+          category: transactionCategory, total: data.totalAmount.abs()));
+    }
   });
 
   pieSlices.sort((a,b) => (a.total < b.total)? 1: 0);
@@ -48,12 +52,17 @@ class TimeRangedSpendingPieChart extends StatefulWidget{
     required this.database,
     required this.startDateTime,
     required this.endDateTime,
+    required this.transactionNameFilter,
+    this.selectedCategoriesPks,
     super.key
   });
 
   final FinanceDatabase database;
   final DateTime startDateTime;
   final DateTime endDateTime;
+  /// null = all categories, empty = none, non-empty = specific categories
+  final Set<String>? selectedCategoriesPks;
+  final String transactionNameFilter;
   @override
   State<TimeRangedSpendingPieChart> createState() => _TimeRangedSpendingPieChartState();
 }
@@ -69,13 +78,15 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
     _loadData();
   }
 
-  // Add this method!
   @override
   void didUpdateWidget(TimeRangedSpendingPieChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Check if the database instance changed
-    if (oldWidget.database != widget.database) {
-      // It changed! Reload the data using the NEW database
+    // Check if any parameters changed that require reloading data
+    if (oldWidget.database != widget.database ||
+        oldWidget.startDateTime != widget.startDateTime ||
+        oldWidget.endDateTime != widget.endDateTime ||
+        oldWidget.selectedCategoriesPks != widget.selectedCategoriesPks ||
+        oldWidget.transactionNameFilter != widget.transactionNameFilter) {
       _loadData();
     }
   }
@@ -88,9 +99,16 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
 
   Future<List<CategoryWithTotal>> _fetchDataAndProcessPieChartData() async {
     // Fetch data from database
+    final nameFilter = widget.transactionNameFilter;
     final results = await Future.wait([
       widget.database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
-              (t) => t.dateCreated.isBetweenValues(widget.startDateTime, widget.endDateTime)
+              (t) {
+                var filter = t.dateCreated.isBetweenValues(widget.startDateTime, widget.endDateTime);
+                if (nameFilter.isNotEmpty) {
+                  filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
+                }
+                return filter;
+              }
       ),
       widget.database.getAllCategories(),
     ]);
@@ -103,6 +121,7 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
     categories: categories,
     startDateTime: widget.startDateTime,
     endDateTime: widget.endDateTime,
+    selectedCategoriesPks: widget.selectedCategoriesPks,
     ));
   }
 
