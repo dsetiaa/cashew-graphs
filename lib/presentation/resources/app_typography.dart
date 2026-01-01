@@ -40,6 +40,14 @@ class AppTypography {
     color: AppColors.mainTextColor2,
   );
 
+
+  static TextStyle get bodySmall => const TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0.25,
+    color: AppColors.mainTextColor3,
+  );
+
   // Label - for axis labels, tooltips, legends
   static TextStyle get labelLarge => const TextStyle(
     fontSize: 14,

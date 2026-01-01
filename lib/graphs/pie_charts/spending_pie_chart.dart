@@ -9,41 +9,108 @@ import 'package:flutter/material.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 
-// Top-level function for isolate computation
-List<CategoryWithTotal> _computePieSlices(({
-List<TransactionWithCategory> transactionsWithCategory,
-List<TransactionCategory> categories,
-DateTime startDateTime,
-DateTime endDateTime,
-Set<String>? selectedCategoriesPks,
+// Top-level function for isolate computation - returns hierarchical data for sunburst chart
+List<CategoryWithTotalAndSubs> _computePieSlices(({
+  List<TransactionWithCategory> transactionsWithCategory,
+  List<TransactionCategory> categories,
+  DateTime startDateTime,
+  DateTime endDateTime,
+  Set<String>? selectedCategoriesPks,
 }) params) {
-  Map<TransactionCategory,({int transactionCount, double totalAmount})> pieChartData = {};
-  //TODO: figure out how to show subcategories
-  for(TransactionWithCategory t in params.transactionsWithCategory){
-    final existing = pieChartData[t.category];
-    if(existing != null){
-      pieChartData[t.category] = (
-        transactionCount: existing.transactionCount + 1,
-        totalAmount: existing.totalAmount + t.transaction.amount,
-      );
-    } else {
-      pieChartData[t.category] = (
-        transactionCount: 1,
-        totalAmount: t.transaction.amount,
+  // Build hierarchical data: main category -> subcategories
+  // Key: main category PK, Value: category data with subcategory breakdown
+  Map<String, ({
+    TransactionCategory category,
+    int transactionCount,
+    double totalAmount,
+    Map<String, ({TransactionCategory? subCategory, int count, double amount})> subcategories,
+  })> hierarchicalData = {};
+
+  for (TransactionWithCategory t in params.transactionsWithCategory) {
+    final mainCategoryPk = t.category.categoryPk;
+    final subCategoryPk = t.subCategory?.categoryPk ?? 'uncategorized';
+
+    if (!hierarchicalData.containsKey(mainCategoryPk)) {
+      hierarchicalData[mainCategoryPk] = (
+        category: t.category,
+        transactionCount: 0,
+        totalAmount: 0.0,
+        subcategories: {},
       );
     }
+
+    final existing = hierarchicalData[mainCategoryPk]!;
+    final existingSub = existing.subcategories[subCategoryPk];
+
+    // Update subcategory data
+    final updatedSubs = Map<String, ({TransactionCategory? subCategory, int count, double amount})>.from(existing.subcategories);
+    if (existingSub != null) {
+      updatedSubs[subCategoryPk] = (
+        subCategory: t.subCategory,
+        count: existingSub.count + 1,
+        amount: existingSub.amount + t.transaction.amount,
+      );
+    } else {
+      updatedSubs[subCategoryPk] = (
+        subCategory: t.subCategory,
+        count: 1,
+        amount: t.transaction.amount,
+      );
+    }
+
+    // Update main category totals
+    hierarchicalData[mainCategoryPk] = (
+      category: t.category,
+      transactionCount: existing.transactionCount + 1,
+      totalAmount: existing.totalAmount + t.transaction.amount,
+      subcategories: updatedSubs,
+    );
   }
 
-  List<CategoryWithTotal> pieSlices = [];
+  // Convert to List<CategoryWithTotalAndSubs>
+  List<CategoryWithTotalAndSubs> pieSlices = [];
 
-  pieChartData.forEach((transactionCategory, data){
-    if (showCategory(category: transactionCategory, selectedCategoriesPks: params.selectedCategoriesPks, showSubcategories: false)){
-      pieSlices.add(CategoryWithTotal(
-          category: transactionCategory, total: data.totalAmount.abs()));
+  hierarchicalData.forEach((categoryPk, data) {
+    if (showCategory(
+      category: data.category,
+      selectedCategoriesPks: params.selectedCategoriesPks,
+      showSubcategories: false,
+    )) {
+      // Build subcategory list
+      List<CategoryWithTotal> subcategoryList = [];
+
+      data.subcategories.forEach((subPk, subData) {
+        if (subPk == 'uncategorized') {
+          // For uncategorized, use the main category but mark as uncategorized
+          subcategoryList.add(CategoryWithTotal(
+            category: data.category,
+            total: subData.amount.abs(),
+            transactionCount: subData.count,
+            isUncategorized: true,
+          ));
+        } else {
+          subcategoryList.add(CategoryWithTotal(
+            category: subData.subCategory!,
+            total: subData.amount.abs(),
+            transactionCount: subData.count,
+          ));
+        }
+      });
+
+      // Sort subcategories by total (descending)
+      subcategoryList.sort((a, b) => b.total.compareTo(a.total));
+
+      pieSlices.add(CategoryWithTotalAndSubs(
+        category: data.category,
+        total: data.totalAmount.abs(),
+        transactionCount: data.transactionCount,
+        subcategories: subcategoryList,
+      ));
     }
   });
 
-  pieSlices.sort((a,b) => (a.total < b.total)? 1: 0);
+  // Sort main categories by total (descending)
+  pieSlices.sort((a, b) => b.total.compareTo(a.total));
   return pieSlices;
 }
 
@@ -54,6 +121,7 @@ class TimeRangedSpendingPieChart extends StatefulWidget{
     required this.endDateTime,
     required this.transactionNameFilter,
     this.selectedCategoriesPks,
+    this.showSubcategories = true,
     super.key
   });
 
@@ -63,6 +131,7 @@ class TimeRangedSpendingPieChart extends StatefulWidget{
   /// null = all categories, empty = none, non-empty = specific categories
   final Set<String>? selectedCategoriesPks;
   final String transactionNameFilter;
+  final bool showSubcategories;
   @override
   State<TimeRangedSpendingPieChart> createState() => _TimeRangedSpendingPieChartState();
 }
@@ -70,7 +139,7 @@ class TimeRangedSpendingPieChart extends StatefulWidget{
 class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart> {
 
 
-  late Future<List<CategoryWithTotal>> _pieChartDataFuture;
+  late Future<List<CategoryWithTotalAndSubs>> _pieChartDataFuture;
 
   @override
   void initState() {
@@ -97,7 +166,7 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
     });
   }
 
-  Future<List<CategoryWithTotal>> _fetchDataAndProcessPieChartData() async {
+  Future<List<CategoryWithTotalAndSubs>> _fetchDataAndProcessPieChartData() async {
     // Fetch data from database
     final nameFilter = widget.transactionNameFilter;
     final results = await Future.wait([
@@ -127,7 +196,7 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<CategoryWithTotal>>(
+    return FutureBuilder<List<CategoryWithTotalAndSubs>>(
       future: _pieChartDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -176,6 +245,7 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
         return GeneralPieChart(
           totalSpent: totalSpent,
           data: pieChartData,
+          showSubcategories: widget.showSubcategories,
         );
       },
     );

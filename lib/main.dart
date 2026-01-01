@@ -173,6 +173,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 endDateTime: _filterSettings.endDate,
                 selectedCategoriesPks: _filterSettings.selectedCategoryPks,
                 transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
+                showSubcategories: _filterSettings.showSubcategories,
               ),
             ),
           ],

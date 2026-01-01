@@ -630,12 +630,14 @@ class CategoryWithTotal {
   final CategoryBudgetLimit? categoryBudgetLimit;
   final double total;
   final int transactionCount;
+  final bool isUncategorized;
 
   CategoryWithTotal({
     required this.category,
     required this.total,
     this.transactionCount = 0,
     this.categoryBudgetLimit,
+    this.isUncategorized = false,
   });
 
   @override
@@ -651,13 +653,39 @@ class CategoryWithTotal {
     CategoryBudgetLimit? categoryBudgetLimit,
     double? total,
     int? transactionCount,
+    bool? isUncategorized,
   }) {
     return CategoryWithTotal(
       category: category ?? this.category,
       categoryBudgetLimit: categoryBudgetLimit ?? this.categoryBudgetLimit,
       total: total ?? this.total,
       transactionCount: transactionCount ?? this.transactionCount,
+      isUncategorized: isUncategorized ?? this.isUncategorized,
     );
+  }
+}
+
+/// Hierarchical category data for sunburst pie charts
+class CategoryWithTotalAndSubs {
+  final TransactionCategory category;
+  final double total;
+  final int transactionCount;
+  final List<CategoryWithTotal> subcategories;
+
+  CategoryWithTotalAndSubs({
+    required this.category,
+    required this.total,
+    this.transactionCount = 0,
+    required this.subcategories,
+  });
+
+  @override
+  String toString() {
+    return 'CategoryWithTotalAndSubs {'
+        'category: ${category.name}, '
+        'total: $total, '
+        'subcategories: ${subcategories.length}'
+        '}';
   }
 }
 
