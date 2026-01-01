@@ -152,6 +152,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 showTotal: _filterSettings.showTotal,
                 selectedCategoriesPks: _filterSettings.selectedCategoryPks,
                 transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
+                showSubcategories: _filterSettings.showSubcategories,
               ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),

@@ -31,24 +31,47 @@ class LineGraphData{
 
 /// Returns true if the category should be shown based on selection.
 /// null = all categories, empty = none, non-empty = specific categories
-bool showCategory({required String categoryPk, required Set<String>? selectedCategoriesPks}){
+bool showCategory({required TransactionCategory category,
+  required Set<String>? selectedCategoriesPks, required bool showSubcategories}){
   if (selectedCategoriesPks == null) return true; // null = all selected
-  return selectedCategoriesPks.contains(categoryPk);
+
+  if(showSubcategories){
+    if(category.mainCategoryPk != null){
+      return selectedCategoriesPks.contains(category.mainCategoryPk!); //selection contains only main category pks
+    }
+  } else {
+    if(category.mainCategoryPk != null){
+      return false;
+    }
+  }
+
+  return selectedCategoriesPks.contains(category.categoryPk);
 }
 
 
 Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
   required List<TransactionWithCategory> transactionsWithCategory,
   required TimeUnit timeUnit, required DateTime rangeStart, required DateTime rangeEnd,
-  required bool showTotal, required Set<String>? selectedCategoriesPks})
+  required bool showTotal, required Set<String>? selectedCategoriesPks,
+  required bool showSubcategories})
 {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict = {};
   for(TransactionWithCategory twc in transactionsWithCategory) {
-    if(!showCategory(categoryPk: twc.category.categoryPk,
+    if(!showCategory(category: twc.category, showSubcategories: showSubcategories,
         selectedCategoriesPks: selectedCategoriesPks)){
       continue;
     }
-    for (String categoryPk in [twc.category.categoryPk, Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK]) {
+    List<String> lines = [];
+    if(showSubcategories){
+      if(twc.subCategory != null){
+        lines.add(twc.subCategory!.categoryPk);
+      } else {
+        lines.add("${twc.category.categoryPk}-uncategorized");
+      }
+    }
+    lines += [twc.category.categoryPk, Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK];
+
+    for (String categoryPk in lines) {
       //If some data points exist for that category
       if (graphLinesDict[categoryPk] != null) {
         //Add transaction amount to point if both correspond to same time period
@@ -153,7 +176,7 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
   required List<TransactionCategory> categories, required DateTime startDateTime,
   required DateTime endDateTime, required TimeUnit timeUnit,
   required LineGraphType graphType, required bool showTotal,
-  required Set<String>? selectedCategories})
+  required Set<String>? selectedCategories, required bool showSubcategories})
 {
   List<LineChartBarData> graphLines = [];
   List<String> lineLabels = [];
@@ -163,16 +186,27 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
     Color lineColor;
     String lineLabel;
     bool showLine;
-    if(categoryPk != Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK) {
-      TransactionCategory matchedCategory = categories.firstWhere((tk) =>
-      tk.categoryPk == categoryPk);
-      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38; //TODO: make function to get color
-      lineLabel = matchedCategory.name;
-      showLine = showCategory(categoryPk: matchedCategory.categoryPk, selectedCategoriesPks: selectedCategories);
-    } else {
+    if(categoryPk == Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK) {
       lineColor = Colors.black;
       lineLabel = "TOTAL";
       showLine = showTotal;
+    } else if (categoryPk.contains("-uncategorized")){
+      String mainCategoryPk = categoryPk.split("-uncategorized")[0];
+      TransactionCategory matchedCategory = categories.firstWhere(
+              (tk) => tk.categoryPk == mainCategoryPk
+      );
+      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38; //TODO: make function to get color
+      lineLabel = "${matchedCategory.name}-Uncategorized";
+      showLine = showSubcategories;
+    } else{
+      TransactionCategory matchedCategory = categories.firstWhere(
+              (tk) => tk.categoryPk == categoryPk
+      );
+      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38; //TODO: make function to get color
+      lineLabel = matchedCategory.name;
+      showLine = showCategory(category: matchedCategory,
+          selectedCategoriesPks: selectedCategories,
+          showSubcategories: showSubcategories);
     }
 
     List<FlSpot> spots = [];

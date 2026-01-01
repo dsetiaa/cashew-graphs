@@ -37,7 +37,7 @@ Set<String>? selectedCategoriesPks,
   List<CategoryWithTotal> pieSlices = [];
 
   pieChartData.forEach((transactionCategory, data){
-    if (showCategory(categoryPk: transactionCategory.categoryPk, selectedCategoriesPks: params.selectedCategoriesPks)){
+    if (showCategory(category: transactionCategory, selectedCategoriesPks: params.selectedCategoriesPks, showSubcategories: false)){
       pieSlices.add(CategoryWithTotal(
           category: transactionCategory, total: data.totalAmount.abs()));
     }

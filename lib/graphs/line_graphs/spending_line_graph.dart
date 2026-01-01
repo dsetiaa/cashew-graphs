@@ -18,7 +18,8 @@ LineGraphData _computeGraphLines(({
   DateTime endDateTime,
   LineGraphType graphType,
   bool showTotal,
-  Set<String>? selectedCategoriesPks
+  Set<String>? selectedCategoriesPks,
+  bool showSubcategories,
 }) params) {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict =
       getGraphLinesDict(
@@ -27,7 +28,8 @@ LineGraphData _computeGraphLines(({
         rangeStart: params.startDateTime,
         rangeEnd: params.endDateTime,
         showTotal: params.showTotal,
-        selectedCategoriesPks: params.selectedCategoriesPks
+        selectedCategoriesPks: params.selectedCategoriesPks,
+        showSubcategories: params.showSubcategories
       );
 
   // List<LineChartBarData> graphLines;
@@ -40,7 +42,8 @@ LineGraphData _computeGraphLines(({
     endDateTime: params.endDateTime,
     graphType: params.graphType,
     showTotal: params.showTotal,
-    selectedCategories: params.selectedCategoriesPks
+    selectedCategories: params.selectedCategoriesPks,
+    showSubcategories: params.showSubcategories
   );
 
   double maxX = getMaxX(startDateTime: params.startDateTime,
@@ -62,6 +65,7 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
     required this.graphType,
     required this.showTotal,
     required this.transactionNameFilter,
+    required this.showSubcategories,
     this.selectedCategoriesPks,
     super.key
   });
@@ -75,6 +79,7 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
   /// null = all categories, empty = none, non-empty = specific categories
   final Set<String>? selectedCategoriesPks;
   final String transactionNameFilter;
+  final bool showSubcategories;
   @override
   State<TimeRangedSpendingLineGraph> createState() => _TimeRangedSpendingLineGraphState();
 }
@@ -101,7 +106,8 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
         oldWidget.graphType != widget.graphType ||
         oldWidget.showTotal != widget.showTotal ||
         oldWidget.selectedCategoriesPks != widget.selectedCategoriesPks ||
-        oldWidget.transactionNameFilter != widget.transactionNameFilter
+        oldWidget.transactionNameFilter != widget.transactionNameFilter ||
+        oldWidget.showSubcategories != widget.showSubcategories
     ) {
       _loadData();
     }
@@ -141,7 +147,8 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
       endDateTime: widget.endDateTime,
       graphType: widget.graphType,
       showTotal: widget.showTotal,
-      selectedCategoriesPks: widget.selectedCategoriesPks
+      selectedCategoriesPks: widget.selectedCategoriesPks,
+      showSubcategories: widget.showSubcategories,
     ));
   }
 
