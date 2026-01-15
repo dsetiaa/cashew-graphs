@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
@@ -51,6 +55,123 @@ class FilterSettings {
       transactionNameFilter: transactionNameFilter ?? this.transactionNameFilter,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'selectedCategoryPks': selectedCategoryPks?.toList(),
+    'timeUnit': timeUnit.name,
+    'lineGraphType': lineGraphType.name,
+    'showSubcategories': showSubcategories,
+    'showTotal': showTotal,
+    'transactionNameFilter': transactionNameFilter,
+  };
+
+  factory FilterSettings.fromJson(Map<String, dynamic> json, {
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    return FilterSettings(
+      startDate: startDate,
+      endDate: endDate,
+      selectedCategoryPks: json['selectedCategoryPks'] != null
+          ? Set<String>.from(json['selectedCategoryPks'] as List)
+          : null,
+      timeUnit: TimeUnit.values.firstWhere(
+        (e) => e.name == json['timeUnit'],
+        orElse: () => TimeUnit.day,
+      ),
+      lineGraphType: LineGraphType.values.firstWhere(
+        (e) => e.name == json['lineGraphType'],
+        orElse: () => LineGraphType.perTimeUnit,
+      ),
+      showSubcategories: json['showSubcategories'] as bool? ?? false,
+      showTotal: json['showTotal'] as bool? ?? false,
+      transactionNameFilter: json['transactionNameFilter'] as String? ?? '',
+    );
+  }
+}
+
+class FilterPreset {
+  final String id;
+  final String name;
+  final FilterSettings settings;
+
+  const FilterPreset({
+    required this.id,
+    required this.name,
+    required this.settings,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'settings': settings.toJson(),
+  };
+
+  factory FilterPreset.fromJson(Map<String, dynamic> json, {
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    return FilterPreset(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      settings: FilterSettings.fromJson(
+        json['settings'] as Map<String, dynamic>,
+        startDate: startDate,
+        endDate: endDate,
+      ),
+    );
+  }
+}
+
+class FilterPresetManager {
+  static const _storageKey = 'filter_presets';
+
+  static Future<List<FilterPreset>> getPresets({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_storageKey);
+    if (jsonString == null) return [];
+
+    final List<dynamic> jsonList = jsonDecode(jsonString);
+    return jsonList
+        .map((json) => FilterPreset.fromJson(
+          json as Map<String, dynamic>,
+          startDate: startDate,
+          endDate: endDate,
+        ))
+        .toList();
+  }
+
+  static Future<void> savePreset(FilterPreset preset) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_storageKey);
+    final List<dynamic> jsonList = jsonString != null ? jsonDecode(jsonString) : [];
+
+    // Check if preset with same name exists and replace it
+    final existingIndex = jsonList.indexWhere(
+      (json) => (json['name'] as String).toLowerCase() == preset.name.toLowerCase(),
+    );
+
+    if (existingIndex >= 0) {
+      jsonList[existingIndex] = preset.toJson();
+    } else {
+      jsonList.add(preset.toJson());
+    }
+
+    await prefs.setString(_storageKey, jsonEncode(jsonList));
+  }
+
+  static Future<void> deletePreset(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_storageKey);
+    if (jsonString == null) return;
+
+    final List<dynamic> jsonList = jsonDecode(jsonString);
+    jsonList.removeWhere((json) => json['id'] == id);
+    await prefs.setString(_storageKey, jsonEncode(jsonList));
+  }
 }
 
 class FilterDialog extends StatefulWidget {
@@ -93,6 +214,7 @@ class _FilterDialogState extends State<FilterDialog> {
   late bool _showTotal;
   late TextEditingController _transactionNameController;
   bool _showCategoryError = false;
+  List<FilterPreset> _presets = [];
 
   @override
   void initState() {
@@ -109,6 +231,96 @@ class _FilterDialogState extends State<FilterDialog> {
     _transactionNameController = TextEditingController(
       text: widget.initialSettings.transactionNameFilter,
     );
+    _loadPresets();
+  }
+
+  Future<void> _loadPresets() async {
+    final presets = await FilterPresetManager.getPresets(
+      startDate: _startDate,
+      endDate: _endDate,
+    );
+    setState(() {
+      _presets = presets;
+    });
+  }
+
+  void _loadPreset(FilterPreset preset) {
+    setState(() {
+      // Don't change dates - only load filter options
+      _selectedCategoryPks = preset.settings.selectedCategoryPks != null
+          ? Set.from(preset.settings.selectedCategoryPks!)
+          : null;
+      _timeUnit = preset.settings.timeUnit;
+      _lineGraphType = preset.settings.lineGraphType;
+      _showSubcategories = preset.settings.showSubcategories;
+      _showTotal = preset.settings.showTotal;
+      _transactionNameController.text = preset.settings.transactionNameFilter;
+      _showCategoryError = false;
+    });
+  }
+
+  Future<void> _saveCurrentAsPreset() async {
+    final nameController = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.itemsBackground,
+        title: Text('Save Preset', style: AppTypography.titleMedium),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.mainTextColor1,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Preset name',
+            hintStyle: AppTypography.bodyMedium.copyWith(
+              color: AppColors.mainTextColor3,
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.chartBorder),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: AppColors.mainTextColor3)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, nameController.text),
+            child: Text('Save', style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+
+    if (name != null && name.trim().isNotEmpty) {
+      final preset = FilterPreset(
+        id: const Uuid().v4(),
+        name: name.trim(),
+        settings: FilterSettings(
+          startDate: _startDate,
+          endDate: _endDate,
+          selectedCategoryPks: _selectedCategoryPks,
+          timeUnit: _timeUnit,
+          lineGraphType: _lineGraphType,
+          showSubcategories: _showSubcategories,
+          showTotal: _showTotal,
+          transactionNameFilter: _transactionNameController.text,
+        ),
+      );
+      await FilterPresetManager.savePreset(preset);
+      await _loadPresets();
+    }
+  }
+
+  Future<void> _deletePreset(FilterPreset preset) async {
+    await FilterPresetManager.deletePreset(preset.id);
+    await _loadPresets();
   }
 
   @override
@@ -250,7 +462,6 @@ class _FilterDialogState extends State<FilterDialog> {
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     TextButton(
                       onPressed: _resetFilters,
@@ -261,7 +472,16 @@ class _FilterDialogState extends State<FilterDialog> {
                         ),
                       ),
                     ),
+                    const Spacer(),
                     Text('Filters', style: AppTypography.titleMedium),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: _saveCurrentAsPreset,
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                      color: AppColors.mainTextColor2,
+                      tooltip: 'Save as preset',
+                      visualDensity: VisualDensity.compact,
+                    ),
                     TextButton(
                       onPressed: _onApplyPressed,
                       child: Text(
@@ -282,6 +502,74 @@ class _FilterDialogState extends State<FilterDialog> {
                   controller: scrollController,
                   padding: const EdgeInsets.all(AppSpacing.md),
                   children: [
+                    // Presets Section
+                    if (_presets.isNotEmpty) ...[
+                      _buildSectionHeader('Presets'),
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: _presets.map((preset) {
+                          return GestureDetector(
+                            onLongPress: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  backgroundColor: AppColors.itemsBackground,
+                                  title: Text('Delete Preset', style: AppTypography.titleMedium),
+                                  content: Text(
+                                    'Delete "${preset.name}"?',
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: AppColors.mainTextColor2,
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: Text('Cancel', style: TextStyle(color: AppColors.mainTextColor3)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                await _deletePreset(preset);
+                              }
+                            },
+                            child: ActionChip(
+                              label: Text(preset.name),
+                              labelStyle: AppTypography.labelMedium.copyWith(
+                                color: AppColors.mainTextColor1,
+                              ),
+                              avatar: const Icon(
+                                Icons.bookmark,
+                                size: 16,
+                                color: AppColors.primary,
+                              ),
+                              backgroundColor: AppColors.pageBackground,
+                              side: const BorderSide(color: AppColors.chartBorder),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                              ),
+                              onPressed: () => _loadPreset(preset),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Long-press to delete',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.mainTextColor3,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                    ],
+
                     // Date Range Section
                     _buildSectionHeader('Date Range'),
                     const SizedBox(height: AppSpacing.sm),
