@@ -56,14 +56,15 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late FilterSettings _filterSettings;
   List<TransactionCategory> _categories = [];
+  bool _isLoadingDatabase = false;
 
   @override
   void initState() {
     super.initState();
-    final monthRange = getCurrentMonthRange();
+    final defaultDateRange = getDefaultDateRange();
     _filterSettings = FilterSettings(
-      startDate: monthRange.start,
-      endDate: monthRange.end,
+      startDate: defaultDateRange.start,
+      endDate: defaultDateRange.end,
       showTotal: true,
     );
   }
@@ -115,7 +116,18 @@ class _MyHomePageState extends State<MyHomePage> {
           const SizedBox(width: AppSpacing.sm,),
           IconButton(
             onPressed: () {
-              DatabaseProvider.of(context).importDatabase();
+              DatabaseProvider.of(context).importDatabase(
+                onLoadingStart: () {
+                  setState(() {
+                    _isLoadingDatabase = true;
+                  });
+                },
+                onLoadingEnd: () {
+                  setState(() {
+                    _isLoadingDatabase = false;
+                  });
+                },
+              );
             },
             icon: const Icon(
               Icons.upload_file_outlined,
@@ -143,17 +155,31 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: TimeRangedSpendingLineGraph(
-                database: database,
-                startDateTime: _filterSettings.startDate,
-                endDateTime: _filterSettings.endDate,
-                timeUnit: _filterSettings.timeUnit,
-                graphType: _filterSettings.lineGraphType,
-                showTotal: _filterSettings.showTotal,
-                selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
-                showSubcategories: _filterSettings.showSubcategories,
-              ),
+              child: _isLoadingDatabase
+                  ? SizedBox(
+                      height: 300,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Loading database...', style: AppTypography.bodySmall),
+                          ],
+                        ),
+                      ),
+                    )
+                  : TimeRangedSpendingLineGraph(
+                      database: database,
+                      startDateTime: _filterSettings.startDate,
+                      endDateTime: _filterSettings.endDate,
+                      timeUnit: _filterSettings.timeUnit,
+                      graphType: _filterSettings.lineGraphType,
+                      showTotal: _filterSettings.showTotal,
+                      selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+                      transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
+                      showSubcategories: _filterSettings.showSubcategories,
+                    ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
             // Pie Chart Card
@@ -167,14 +193,28 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: TimeRangedSpendingPieChart(
-                database: database,
-                startDateTime: _filterSettings.startDate,
-                endDateTime: _filterSettings.endDate,
-                selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
-                showSubcategories: _filterSettings.showSubcategories,
-              ),
+              child: _isLoadingDatabase
+                  ? SizedBox(
+                      height: 300,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Loading database...', style: AppTypography.bodySmall),
+                          ],
+                        ),
+                      ),
+                    )
+                  : TimeRangedSpendingPieChart(
+                      database: database,
+                      startDateTime: _filterSettings.startDate,
+                      endDateTime: _filterSettings.endDate,
+                      selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+                      transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
+                      showSubcategories: _filterSettings.showSubcategories,
+                    ),
             ),
           ],
         ),

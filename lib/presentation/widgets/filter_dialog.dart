@@ -181,10 +181,10 @@ class _FilterDialogState extends State<FilterDialog> {
   }
 
   void _resetFilters() {
-    final monthRange = getCurrentMonthRange();
+    final defaultDateRange = getDefaultDateRange();
     setState(() {
-      _startDate = monthRange.start;
-      _endDate = monthRange.end;
+      _startDate = defaultDateRange.start;
+      _endDate = defaultDateRange.end;
       _selectedCategoryPks = null; // null = all selected
       _timeUnit = TimeUnit.day;
       _lineGraphType = LineGraphType.perTimeUnit;
