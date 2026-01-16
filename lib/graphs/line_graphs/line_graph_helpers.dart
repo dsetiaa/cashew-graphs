@@ -53,7 +53,7 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
   required List<TransactionWithCategory> transactionsWithCategory,
   required TimeUnit timeUnit, required DateTime rangeStart, required DateTime rangeEnd,
   required bool showTotal, required Set<String>? selectedCategoriesPks,
-  required bool showSubcategories})
+  required bool showSubcategories, bool showTransactionCount = false})
 {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict = {};
   for(TransactionWithCategory twc in transactionsWithCategory) {
@@ -81,7 +81,7 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
           graphLinesDict[categoryPk]![graphLinesDict[categoryPk]!.length -
               1] = (
           date: lastRecord.date,
-          amount: lastRecord.amount + twc.transaction.amount
+          amount: showTransactionCount? lastRecord.amount + 1: lastRecord.amount + twc.transaction.amount
           );
         } else {
           // Add intermediate points
@@ -102,7 +102,7 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
           // Add transaction data point
           graphLinesDict[categoryPk]!.add((
           date: twc.transaction.dateCreated,
-          amount: twc.transaction.amount
+          amount: showTransactionCount? 1: twc.transaction.amount
           ));
         }
       } else {
@@ -127,9 +127,9 @@ Map<String,List<({DateTime date, double amount})>> getGraphLinesDict({
           }
 
           // Add transaction data
-          graphLinesDict[categoryPk]!.add((date: twc.transaction.dateCreated, amount: twc.transaction.amount));
+          graphLinesDict[categoryPk]!.add((date: twc.transaction.dateCreated, amount: showTransactionCount? 1: twc.transaction.amount));
         }else {
-          graphLinesDict[categoryPk] = [(date: twc.transaction.dateCreated, amount: twc.transaction.amount)];
+          graphLinesDict[categoryPk] = [(date: twc.transaction.dateCreated, amount: showTransactionCount? 1: twc.transaction.amount)];
         }
 
 

@@ -20,6 +20,7 @@ LineGraphData _computeGraphLines(({
   bool showTotal,
   Set<String>? selectedCategoriesPks,
   bool showSubcategories,
+  bool showTransactionCount
 }) params) {
   Map<String,List<({DateTime date, double amount})>> graphLinesDict =
       getGraphLinesDict(
@@ -29,7 +30,8 @@ LineGraphData _computeGraphLines(({
         rangeEnd: params.endDateTime,
         showTotal: params.showTotal,
         selectedCategoriesPks: params.selectedCategoriesPks,
-        showSubcategories: params.showSubcategories
+        showSubcategories: params.showSubcategories,
+        showTransactionCount: params.showTransactionCount,
       );
 
   // List<LineChartBarData> graphLines;
@@ -67,6 +69,7 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
     required this.transactionNameFilter,
     required this.showSubcategories,
     this.selectedCategoriesPks,
+    this.showTransactionCount = false,
     super.key
   });
 
@@ -80,6 +83,7 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
   final Set<String>? selectedCategoriesPks;
   final String transactionNameFilter;
   final bool showSubcategories;
+  final bool showTransactionCount;
   @override
   State<TimeRangedSpendingLineGraph> createState() => _TimeRangedSpendingLineGraphState();
 }
@@ -149,6 +153,7 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
       showTotal: widget.showTotal,
       selectedCategoriesPks: widget.selectedCategoriesPks,
       showSubcategories: widget.showSubcategories,
+    showTransactionCount: widget.showTransactionCount
     ));
   }
 
@@ -208,6 +213,7 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
           leftTitleWidgets: getYAxisTitleWidgets,
           bottomTitleWidgets: (value, meta) => getXAxisTitleWidgets(value, meta, widget.timeUnit, widget.startDateTime, widget.endDateTime),
           getLineTouchToolTipHeadingFunction: (x) => getLineTouchToolTipHeading(x, widget.startDateTime, widget.endDateTime, widget.timeUnit),
+          showTransactionCount: widget.showTransactionCount,
         );
       },
     );

@@ -216,6 +216,44 @@ class _MyHomePageState extends State<MyHomePage> {
                       showSubcategories: _filterSettings.showSubcategories,
                     ),
             ),
+            const SizedBox(height: AppSpacing.sectionGap),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.itemsBackground,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(
+                  color: AppColors.chartBorder.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              padding: const EdgeInsets.all(AppSpacing.cardPadding),
+              child: _isLoadingDatabase
+                  ? SizedBox(
+                height: 300,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading database...', style: AppTypography.bodySmall),
+                    ],
+                  ),
+                ),
+              )
+                  : TimeRangedSpendingLineGraph(
+                database: database,
+                startDateTime: _filterSettings.startDate,
+                endDateTime: _filterSettings.endDate,
+                timeUnit: _filterSettings.timeUnit,
+                graphType: _filterSettings.lineGraphType,
+                showTotal: _filterSettings.showTotal,
+                selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+                transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
+                showSubcategories: _filterSettings.showSubcategories,
+                showTransactionCount: true
+              ),
+            ),
           ],
         ),
         ),

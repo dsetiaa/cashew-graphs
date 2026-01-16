@@ -16,7 +16,8 @@ class _LineChart extends StatefulWidget {
     required this.bottomTitleWidgets,
     required this.getLineTouchToolTipHeadingFunction,
     required this.onTouchedLines,
-    super.key
+    this.showTransactionCount = false,
+    super.key,
     // this.onTouchedIndex
   });
 
@@ -28,6 +29,8 @@ class _LineChart extends StatefulWidget {
   final GetTitleWidgetFunction bottomTitleWidgets;
   final Function getLineTouchToolTipHeadingFunction;
   final Function(List<LineBarSpot>?) onTouchedLines;
+  final bool showTransactionCount;
+
   // final Function(int?)? onTouchedIndex;
 
   @override
@@ -39,10 +42,7 @@ class _LineChartState extends State<_LineChart> {
 
   @override
   Widget build(BuildContext context) {
-    return LineChart(
-      chartData,
-      duration: const Duration(milliseconds: 250),
-    );
+    return LineChart(chartData, duration: const Duration(milliseconds: 250));
   }
 
   LineChartData get chartData => LineChartData(
@@ -116,7 +116,12 @@ class _LineChartState extends State<_LineChart> {
                 // text: convertToMoney(
                 //     Provider.of<AllWallets>(context, listen: false),
                 //     lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y),
-                text: (index < 3 || lineBarSpot.y > 0) ? "₹${lineBarSpot.y == -1e-14 ? 0 : lineBarSpot.y.toStringAsFixed(2)}" : "",
+                text:
+                    (index < 3 || lineBarSpot.y > 0)
+                        ? widget.showTransactionCount
+                            ? '${lineBarSpot.y == -1e-14 ? "0" : lineBarSpot.y.toStringAsFixed(0)}'
+                            : '₹${lineBarSpot.y == -1e-14 ? "0" : lineBarSpot.y.toStringAsFixed(2)}'
+                        : "",
                 style: AppTypography.chartTooltipValue.copyWith(
                   color: lineBarSpot.bar.color,
                   height: index == 0 && touchedSpots.length > 1 ? 1.8 : null,
@@ -152,18 +157,10 @@ class _LineChartState extends State<_LineChart> {
   );
 
   FlTitlesData get titlesData2 => FlTitlesData(
-    bottomTitles: AxisTitles(
-      sideTitles: bottomTitles,
-    ),
-    rightTitles: const AxisTitles(
-      sideTitles: SideTitles(showTitles: false),
-    ),
-    topTitles: const AxisTitles(
-      sideTitles: SideTitles(showTitles: false),
-    ),
-    leftTitles: AxisTitles(
-      sideTitles: leftTitles(),
-    ),
+    bottomTitles: AxisTitles(sideTitles: bottomTitles),
+    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    leftTitles: AxisTitles(sideTitles: leftTitles()),
   );
 
   SideTitles leftTitles() => SideTitles(
@@ -205,14 +202,8 @@ class _LineChartState extends State<_LineChart> {
   FlBorderData get borderData => FlBorderData(
     show: true,
     border: const Border(
-      bottom: BorderSide(
-        color: AppColors.chartBorder,
-        width: 1,
-      ),
-      left: BorderSide(
-        color: AppColors.chartBorder,
-        width: 1,
-      ),
+      bottom: BorderSide(color: AppColors.chartBorder, width: 1),
+      left: BorderSide(color: AppColors.chartBorder, width: 1),
       right: BorderSide.none,
       top: BorderSide.none,
     ),
@@ -229,7 +220,8 @@ class GeneralLineChart extends StatefulWidget {
     required this.bottomTitleWidgets,
     required this.getLineTouchToolTipHeadingFunction,
     required this.lineLabels, // Optional line labels
-    super.key
+    this.showTransactionCount = false,
+    super.key,
   });
 
   final String graphTitle;
@@ -240,6 +232,7 @@ class GeneralLineChart extends StatefulWidget {
   final GetTitleWidgetFunction bottomTitleWidgets;
   final Function getLineTouchToolTipHeadingFunction;
   final List<String> lineLabels; // Labels for each line in graphLines
+  final bool showTransactionCount;
 
   @override
   State<StatefulWidget> createState() => GeneralLineChartState();
@@ -270,6 +263,7 @@ class GeneralLineChartState extends State<GeneralLineChart> {
                   touchedLines = lines;
                 });
               },
+              showTransactionCount: widget.showTransactionCount,
             ),
           ),
         ),
@@ -313,7 +307,9 @@ class GeneralLineChartState extends State<GeneralLineChart> {
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             Text(
-                              '$label: ₹${spot.y == -1e-14 ? "0" : spot.y.toStringAsFixed(2)}',
+                              widget.showTransactionCount
+                                  ? '$label: ${spot.y == -1e-14 ? "0" : spot.y.toStringAsFixed(0)}'
+                                  : '$label: ₹${spot.y == -1e-14 ? "0" : spot.y.toStringAsFixed(2)}',
                               style: AppTypography.legendText.copyWith(
                                 color: spot.bar.color,
                               ),
