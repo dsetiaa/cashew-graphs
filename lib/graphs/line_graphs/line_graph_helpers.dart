@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import 'package:cashew_graphs/logic/category_color_manager.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/logic/constants.dart' as Constants;
@@ -195,14 +196,14 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
       TransactionCategory matchedCategory = categories.firstWhere(
               (tk) => tk.categoryPk == mainCategoryPk
       );
-      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38; //TODO: make function to get color
+      lineColor = CategoryColorManager.getColorForCategory(matchedCategory);
       lineLabel = "${matchedCategory.name}-Uncategorized";
       showLine = showSubcategories;
     } else{
       TransactionCategory matchedCategory = categories.firstWhere(
               (tk) => tk.categoryPk == categoryPk
       );
-      lineColor = (matchedCategory.colour != null)? Color(int.parse(matchedCategory.colour!.substring(4), radix: 16) + 0xFF000000) : Colors.white38; //TODO: make function to get color
+      lineColor = CategoryColorManager.getColorForCategory(matchedCategory);
       lineLabel = matchedCategory.name;
       showLine = showCategory(category: matchedCategory,
           selectedCategoriesPks: selectedCategories,

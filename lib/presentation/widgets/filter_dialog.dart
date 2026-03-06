@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:cashew_graphs/database/tables.dart';
+import 'package:cashew_graphs/logic/category_color_manager.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
 import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
@@ -424,10 +425,7 @@ class _FilterDialogState extends State<FilterDialog> {
   }
 
   Color _getCategoryColor(TransactionCategory category) {
-    if (category.colour != null) {
-      return Color(int.parse(category.colour!.substring(4), radix: 16) + 0xFF000000);
-    }
-    return AppColors.primary;
+    return CategoryColorManager.getColorForCategory(category);
   }
 
   @override

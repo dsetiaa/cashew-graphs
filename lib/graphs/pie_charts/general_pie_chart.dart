@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import 'package:cashew_graphs/logic/category_color_manager.dart';
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
 import 'package:cashew_graphs/presentation/resources/app_typography.dart';
@@ -40,9 +41,7 @@ class _GeneralPieChartState extends State<GeneralPieChart> {
   double get outerRingEnd => outerRingStart + outerRingRadius;
 
   Color _getCategoryColor(TransactionCategory category) {
-    return category.colour != null
-        ? Color(int.parse(category.colour!.substring(4), radix: 16) + 0xFF000000)
-        : Theme.of(context).colorScheme.primary;
+    return CategoryColorManager.getColorForCategory(category);
   }
 
   Color _getSubcategoryColor(Color parentColor, int index, int total, bool isUncategorized) {
