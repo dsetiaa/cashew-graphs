@@ -62,7 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late FilterSettings _filterSettings;
   List<TransactionCategory> _categories = [];
   bool _isLoadingDatabase = false;
-  Future<({double totalSpend, int transactionCount})>? _summaryFuture;
+  Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>? _summaryFuture;
 
   @override
   void initState() {
@@ -75,9 +75,9 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<({double totalSpend, int transactionCount})> _fetchSummary(FinanceDatabase database) async {
+  Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})> _fetchSummary(FinanceDatabase database) async {
     final nameFilter = _filterSettings.transactionNameFilter.trim();
-    final transactions = await database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
+    final allTransactions = await database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
       (t) {
         var filter = t.dateCreated.isBetweenValues(_filterSettings.startDate, _filterSettings.endDate);
         if (nameFilter.isNotEmpty) {
@@ -88,19 +88,22 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     double totalSpend = 0;
-    int count = 0;
-    for (final twc in transactions) {
+    final filtered = <TransactionWithCategory>[];
+    for (final twc in allTransactions) {
       if (showCategory(
         category: twc.category,
         selectedCategoriesPks: _filterSettings.selectedCategoryPks,
         showSubcategories: false,
       )) {
         totalSpend += twc.transaction.amount.abs();
-        count++;
+        filtered.add(twc);
       }
     }
 
-    return (totalSpend: totalSpend, transactionCount: count);
+    // Sort by date descending (newest first)
+    filtered.sort((a, b) => b.transaction.dateCreated.compareTo(a.transaction.dateCreated));
+
+    return (totalSpend: totalSpend, transactionCount: filtered.length, transactions: filtered);
   }
 
   Future<void> _loadCategories(FinanceDatabase database) async {
@@ -215,7 +218,7 @@ class _MyHomePageState extends State<MyHomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Summary Box
-            FutureBuilder<({double totalSpend, int transactionCount})>(
+            FutureBuilder<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>(
               future: _summaryFuture,
               builder: (context, snapshot) {
                 final totalSpend = snapshot.data?.totalSpend;
@@ -387,6 +390,118 @@ class _MyHomePageState extends State<MyHomePage> {
                 showSubcategories: _filterSettings.showSubcategories,
                 showTransactionCount: true
               ),
+            ),
+            const SizedBox(height: AppSpacing.sectionGap),
+            // Transaction List
+            FutureBuilder<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>(
+              future: _summaryFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.itemsBackground,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      border: Border.all(
+                        color: AppColors.chartBorder.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(AppSpacing.cardPadding),
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
+                  );
+                }
+
+                final transactions = snapshot.data?.transactions ?? [];
+                final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
+                final dateFormat = DateFormat('MMM d, yyyy');
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.itemsBackground,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                    border: Border.all(
+                      color: AppColors.chartBorder.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(AppSpacing.cardPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Transactions', style: AppTypography.chartTitle),
+                      const SizedBox(height: AppSpacing.md),
+                      if (transactions.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                          child: Center(
+                            child: Text('No transactions found', style: AppTypography.bodyMedium),
+                          ),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: transactions.length,
+                          itemBuilder: (context, index) {
+                            final twc = transactions[index];
+                            final t = twc.transaction;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.pageBackground.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.sm,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            t.name,
+                                            style: AppTypography.bodyLarge,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${twc.category.name}${twc.subCategory != null ? ' > ${twc.subCategory!.name}' : ''} · ${dateFormat.format(t.dateCreated)}',
+                                            style: AppTypography.bodySmall,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Text(
+                                      '${t.income ? '+' : '-'}${currencyFormat.format(t.amount.abs())}',
+                                      style: AppTypography.bodyLarge.copyWith(
+                                        color: t.income ? AppColors.contentColorGreen : AppColors.contentColorRed,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),

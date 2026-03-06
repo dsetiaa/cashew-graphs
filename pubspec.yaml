@@ -59,6 +59,7 @@ dependencies:
   
   file_picker: ^10.3.2
 
+  intl: ^0.19.0
   auto_size_text: ^3.0.0
   shared_preferences: ^2.2.3
   csv: ^6.0.0
