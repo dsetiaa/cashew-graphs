@@ -1,6 +1,8 @@
 import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/graphs/pie_charts/spending_pie_chart.dart';
+import 'package:cashew_graphs/logic/category_color_manager.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
+import 'package:cashew_graphs/presentation/pages/category_color_settings_page.dart' show SettingsPage;
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
 import 'package:cashew_graphs/presentation/resources/app_typography.dart';
@@ -11,9 +13,9 @@ import 'package:provider/provider.dart';
 import 'graphs/line_graphs/spending_line_graph.dart';
 import 'package:cashew_graphs/database_provider.dart';
 
-void main() {
-  // await loadCurrencyJSON();
-  // runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await CategoryColorManager.initialize();
   runApp(
     const DatabaseProvider(
       child: MyApp(),
@@ -99,6 +101,37 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     final database = Provider.of<FinanceDatabase>(context);
     return Scaffold(
+      drawer: Drawer(
+        backgroundColor: AppColors.itemsBackground,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Text('Spending Analytics', style: AppTypography.titleMedium),
+              ),
+              const Divider(color: AppColors.chartBorder, height: 1),
+              ListTile(
+                leading: const Icon(Icons.home, color: AppColors.mainTextColor2),
+                title: Text('Home', style: AppTypography.bodyLarge),
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings, color: AppColors.mainTextColor2),
+                title: Text('Settings', style: AppTypography.bodyLarge),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  ).then((_) => setState(() {}));
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
       appBar: AppBar(
         title: Text(
           widget.title,
