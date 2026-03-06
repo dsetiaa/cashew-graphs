@@ -2,12 +2,15 @@ import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/graphs/pie_charts/spending_pie_chart.dart';
 import 'package:cashew_graphs/logic/category_color_manager.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
+import 'package:cashew_graphs/graphs/line_graphs/line_graph_helpers.dart';
 import 'package:cashew_graphs/presentation/pages/category_color_settings_page.dart' show SettingsPage;
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
 import 'package:cashew_graphs/presentation/resources/app_typography.dart';
 import 'package:cashew_graphs/presentation/widgets/filter_dialog.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'graphs/line_graphs/spending_line_graph.dart';
@@ -59,6 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late FilterSettings _filterSettings;
   List<TransactionCategory> _categories = [];
   bool _isLoadingDatabase = false;
+  Future<({double totalSpend, int transactionCount})>? _summaryFuture;
 
   @override
   void initState() {
@@ -69,6 +73,34 @@ class _MyHomePageState extends State<MyHomePage> {
       endDate: defaultDateRange.end,
       showTotal: true,
     );
+  }
+
+  Future<({double totalSpend, int transactionCount})> _fetchSummary(FinanceDatabase database) async {
+    final nameFilter = _filterSettings.transactionNameFilter.trim();
+    final transactions = await database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
+      (t) {
+        var filter = t.dateCreated.isBetweenValues(_filterSettings.startDate, _filterSettings.endDate);
+        if (nameFilter.isNotEmpty) {
+          filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
+        }
+        return filter;
+      },
+    );
+
+    double totalSpend = 0;
+    int count = 0;
+    for (final twc in transactions) {
+      if (showCategory(
+        category: twc.category,
+        selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+        showSubcategories: false,
+      )) {
+        totalSpend += twc.transaction.amount.abs();
+        count++;
+      }
+    }
+
+    return (totalSpend: totalSpend, transactionCount: count);
   }
 
   Future<void> _loadCategories(FinanceDatabase database) async {
@@ -97,9 +129,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 
+  void _refreshSummary(FinanceDatabase database) {
+    _summaryFuture = _fetchSummary(database);
+  }
+
   @override
   Widget build(BuildContext context) {
     final database = Provider.of<FinanceDatabase>(context);
+    _refreshSummary(database);
     return Scaffold(
       drawer: Drawer(
         backgroundColor: AppColors.itemsBackground,
@@ -177,6 +214,70 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Summary Box
+            FutureBuilder<({double totalSpend, int transactionCount})>(
+              future: _summaryFuture,
+              builder: (context, snapshot) {
+                final totalSpend = snapshot.data?.totalSpend;
+                final transactionCount = snapshot.data?.transactionCount;
+                final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.itemsBackground,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                    border: Border.all(
+                      color: AppColors.chartBorder.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.cardPadding,
+                    vertical: AppSpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text('Total Spend', style: AppTypography.labelMedium),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              totalSpend != null
+                                  ? currencyFormat.format(totalSpend)
+                                  : '—',
+                              style: AppTypography.titleLarge,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: AppColors.chartBorder.withValues(alpha: 0.3),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text('Transactions', style: AppTypography.labelMedium),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              transactionCount != null
+                                  ? NumberFormat('#,###').format(transactionCount)
+                                  : '—',
+                              style: AppTypography.titleLarge,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.sectionGap),
             // Line Chart Card
             Container(
               decoration: BoxDecoration(
