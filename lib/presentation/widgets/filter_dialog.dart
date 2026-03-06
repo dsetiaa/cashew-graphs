@@ -377,6 +377,11 @@ class _FilterDialogState extends State<FilterDialog> {
           }
         }
       });
+
+      // After selecting start date, automatically open end date picker
+      if (isStart) {
+        _selectDate(false);
+      }
     }
   }
 
