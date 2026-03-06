@@ -444,60 +444,84 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         )
                       else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: transactions.length,
-                          itemBuilder: (context, index) {
-                            final twc = transactions[index];
-                            final t = twc.transaction;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.pageBackground.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.md,
-                                  vertical: AppSpacing.sm,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            t.name,
-                                            style: AppTypography.bodyLarge,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '${twc.category.name}${twc.subCategory != null ? ' > ${twc.subCategory!.name}' : ''} · ${dateFormat.format(t.dateCreated)}',
-                                            style: AppTypography.bodySmall,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
+                        Builder(builder: (context) {
+                          // Build flat list: date headers interleaved with transactions
+                          final items = <Object>[]; // String = date header, TransactionWithCategory = row
+                          String? lastDate;
+                          for (final twc in transactions) {
+                            final dateStr = dateFormat.format(twc.transaction.dateCreated);
+                            if (dateStr != lastDate) {
+                              items.add(dateStr);
+                              lastDate = dateStr;
+                            }
+                            items.add(twc);
+                          }
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              if (item is String) {
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    top: index == 0 ? 0 : AppSpacing.md,
+                                    bottom: AppSpacing.xs,
+                                  ),
+                                  child: Text(item, style: AppTypography.labelLarge),
+                                );
+                              }
+                              final twc = item as TransactionWithCategory;
+                              final t = twc.transaction;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.pageBackground.withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                    vertical: AppSpacing.sm,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              t.name,
+                                              style: AppTypography.bodyLarge,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${twc.category.name}${twc.subCategory != null ? ' > ${twc.subCategory!.name}' : ''}',
+                                              style: AppTypography.bodySmall,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.sm),
-                                    Text(
-                                      '${t.income ? '+' : '-'}${currencyFormat.format(t.amount.abs())}',
-                                      style: AppTypography.bodyLarge.copyWith(
-                                        color: t.income ? AppColors.contentColorGreen : AppColors.contentColorRed,
-                                        fontWeight: FontWeight.w600,
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Text(
+                                        '${t.income ? '+' : '-'}${currencyFormat.format(t.amount.abs())}',
+                                        style: AppTypography.bodyLarge.copyWith(
+                                          color: t.income ? AppColors.contentColorGreen : AppColors.contentColorRed,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                              );
+                            },
+                          );
+                        }),
                     ],
                   ),
                 );
