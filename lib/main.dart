@@ -194,17 +194,19 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildChartCard({required Widget child}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.itemsBackground,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(
-          color: AppColors.chartBorder.withValues(alpha: 0.3),
-          width: 1,
+    return RepaintBoundary(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.itemsBackground,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(
+            color: AppColors.chartBorder.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
+        padding: const EdgeInsets.all(AppSpacing.cardPadding),
+        child: child,
       ),
-      padding: const EdgeInsets.all(AppSpacing.cardPadding),
-      child: child,
     );
   }
 

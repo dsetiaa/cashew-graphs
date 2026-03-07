@@ -42,7 +42,7 @@ class _LineChartState extends State<_LineChart> {
 
   @override
   Widget build(BuildContext context) {
-    return LineChart(chartData, duration: const Duration(milliseconds: 250));
+    return LineChart(chartData, duration: Duration.zero);
   }
 
   LineChartData get chartData => LineChartData(
