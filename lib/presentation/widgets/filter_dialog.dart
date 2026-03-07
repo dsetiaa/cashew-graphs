@@ -425,7 +425,7 @@ class _FilterDialogState extends State<FilterDialog> {
       _timeUnit = TimeUnit.day;
       _lineGraphType = LineGraphType.perTimeUnit;
       _showSubcategories = false;
-      _showTotal = false;
+      _showTotal = true;
       _transactionNameController.clear();
     });
   }

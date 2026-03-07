@@ -205,7 +205,7 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
         final lineGraphData = snapshot.data!;
 
         return GeneralLineChart(
-          graphTitle: "Monthly Per Day",
+          graphTitle: widget.showTransactionCount? "Transaction Count" : "Spending",
           graphLines: lineGraphData.graphLines,
           lineLabels: lineGraphData.lineLabels,
           maxX: lineGraphData.maxX,

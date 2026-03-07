@@ -34,10 +34,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Spending Analytics',
+      title: 'CashFlew💸',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const MyHomePage(title: 'Spending Analytics'),
+      home: const MyHomePage(title: 'CashFlew💸'),
     );
   }
 }
@@ -172,7 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: Text('Spending Analytics', style: AppTypography.titleMedium),
+                child: Text('CashFlew💸', style: AppTypography.titleMedium),
               ),
               const Divider(color: AppColors.chartBorder, height: 1),
               ListTile(
