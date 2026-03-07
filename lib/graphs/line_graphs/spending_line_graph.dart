@@ -2,7 +2,6 @@ import 'package:cashew_graphs/database/tables.dart';
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
 import 'package:cashew_graphs/presentation/resources/app_typography.dart';
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cashew_graphs/graphs/line_graphs/general_line_graph.dart';
@@ -60,20 +59,21 @@ LineGraphData _computeGraphLines(({
 
 class TimeRangedSpendingLineGraph extends StatefulWidget{
   const TimeRangedSpendingLineGraph({
-    required this.database,
+    required this.transactions,
+    required this.categories,
     required this.startDateTime,
     required this.endDateTime,
     required this.timeUnit,
     required this.graphType,
     required this.showTotal,
-    required this.transactionNameFilter,
     required this.showSubcategories,
     this.selectedCategoriesPks,
     this.showTransactionCount = false,
     super.key
   });
 
-  final FinanceDatabase database;
+  final List<TransactionWithCategory> transactions;
+  final List<TransactionCategory> categories;
   final DateTime startDateTime;
   final DateTime endDateTime;
   final TimeUnit timeUnit;
@@ -81,7 +81,6 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
   final bool showTotal;
   /// null = all categories, empty = none, non-empty = specific categories
   final Set<String>? selectedCategoriesPks;
-  final String transactionNameFilter;
   final bool showSubcategories;
   final bool showTransactionCount;
   @override
@@ -89,7 +88,6 @@ class TimeRangedSpendingLineGraph extends StatefulWidget{
 }
 
 class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGraph> {
-
 
   late Future<LineGraphData> _lineGraphDataFuture;
 
@@ -102,15 +100,14 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
   @override
   void didUpdateWidget(TimeRangedSpendingLineGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Check if any parameters changed that require reloading data
-    if (oldWidget.database != widget.database ||
+    if (oldWidget.transactions != widget.transactions ||
+        oldWidget.categories != widget.categories ||
         oldWidget.startDateTime != widget.startDateTime ||
         oldWidget.endDateTime != widget.endDateTime ||
         oldWidget.timeUnit != widget.timeUnit ||
         oldWidget.graphType != widget.graphType ||
         oldWidget.showTotal != widget.showTotal ||
         oldWidget.selectedCategoriesPks != widget.selectedCategoriesPks ||
-        oldWidget.transactionNameFilter != widget.transactionNameFilter ||
         oldWidget.showSubcategories != widget.showSubcategories
     ) {
       _loadData();
@@ -119,33 +116,14 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
 
   void _loadData() {
     setState(() {
-      _lineGraphDataFuture = _fetchDataAndProcessLineGraphData();
+      _lineGraphDataFuture = _processLineGraphData();
     });
   }
 
-  Future<LineGraphData> _fetchDataAndProcessLineGraphData() async {
-    // Fetch data from database
-    final nameFilter = widget.transactionNameFilter;
-    final results = await Future.wait([
-      widget.database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
-        (t) {
-          var filter = t.dateCreated.isBetweenValues(widget.startDateTime, widget.endDateTime);
-          if (nameFilter.isNotEmpty) {
-            filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
-          }
-          return filter;
-        }
-      ),
-      widget.database.getAllCategories(),
-    ]);
-
-    final transactionsWithCategory = results[0] as List<TransactionWithCategory>;
-    final categories = results[1] as List<TransactionCategory>;
-
-    // Process graph lines in a separate isolate using compute
+  Future<LineGraphData> _processLineGraphData() async {
     return await compute(_computeGraphLines, (
-      transactionsWithCategory: transactionsWithCategory,
-      categories: categories,
+      transactionsWithCategory: widget.transactions,
+      categories: widget.categories,
       timeUnit: widget.timeUnit,
       startDateTime: widget.startDateTime,
       endDateTime: widget.endDateTime,
@@ -153,7 +131,7 @@ class _TimeRangedSpendingLineGraphState extends State<TimeRangedSpendingLineGrap
       showTotal: widget.showTotal,
       selectedCategoriesPks: widget.selectedCategoriesPks,
       showSubcategories: widget.showSubcategories,
-    showTransactionCount: widget.showTransactionCount
+      showTransactionCount: widget.showTransactionCount,
     ));
   }
 

@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CashFlew💸',
+      title: 'CashFlew',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       home: const MyHomePage(title: 'CashFlew💸'),
@@ -64,9 +64,18 @@ class _MyHomePageState extends State<MyHomePage> {
   late FilterSettings _filterSettings;
   List<TransactionCategory> _categories = [];
   bool _isLoadingDatabase = false;
-  Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>? _summaryFuture;
+  ({
+    double totalSpend,
+    int transactionCount,
+    List<TransactionWithCategory> filteredTransactions,
+    List<TransactionWithCategory> allTransactions,
+    List<TransactionCategory> categories,
+  })? _data;
   late DateTime _selectedMonth;
   final _monthSelectorKey = GlobalKey<MonthSelectorState>();
+
+  FinanceDatabase? _database;
+  int _fetchGeneration = 0;
 
   @override
   void initState() {
@@ -81,32 +90,51 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final database = Provider.of<FinanceDatabase>(context);
+    if (_database != database) {
+      _database = database;
+      _refreshData();
+    }
+  }
+
   void _selectMonth(DateTime month) {
     final now = DateTime.now();
     final isCurrentMonth = month.year == now.year && month.month == now.month;
-    setState(() {
-      _selectedMonth = month;
-      _filterSettings = _filterSettings.copyWith(
-        startDate: DateTime(month.year, month.month, 1),
-        endDate: isCurrentMonth
-            ? getDefaultEndDate()
-            : DateTime(month.year, month.month + 1, 1).subtract(const Duration(milliseconds: 1)),
-      );
-    });
+    _selectedMonth = month;
+    _filterSettings = _filterSettings.copyWith(
+      startDate: DateTime(month.year, month.month, 1),
+      endDate: isCurrentMonth
+          ? getDefaultEndDate()
+          : DateTime(month.year, month.month + 1, 1).subtract(const Duration(milliseconds: 1)),
+    );
+    _refreshData();
     _monthSelectorKey.currentState?.scrollToMonth(_selectedMonth);
   }
 
-  Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})> _fetchSummary(FinanceDatabase database) async {
+  Future<void> _fetchData(int generation) async {
+    final database = _database!;
     final nameFilter = _filterSettings.transactionNameFilter.trim();
-    final allTransactions = await database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
-      (t) {
-        var filter = t.dateCreated.isBetweenValues(_filterSettings.startDate, _filterSettings.endDate);
-        if (nameFilter.isNotEmpty) {
-          filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
-        }
-        return filter;
-      },
-    );
+    final results = await Future.wait([
+      database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
+        (t) {
+          var filter = t.dateCreated.isBetweenValues(_filterSettings.startDate, _filterSettings.endDate);
+          if (nameFilter.isNotEmpty) {
+            filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
+          }
+          return filter;
+        },
+      ),
+      database.getAllCategories(),
+    ]);
+
+    if (!mounted || generation != _fetchGeneration) return;
+
+    final allTransactions = results[0] as List<TransactionWithCategory>;
+    final categories = results[1] as List<TransactionCategory>;
+    _categories = categories;
 
     double totalSpend = 0;
     final filtered = <TransactionWithCategory>[];
@@ -121,20 +149,23 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
 
-    // Sort by date descending (newest first)
     filtered.sort((a, b) => b.transaction.dateCreated.compareTo(a.transaction.dateCreated));
 
-    return (totalSpend: totalSpend, transactionCount: filtered.length, transactions: filtered);
+    setState(() {
+      _data = (
+        totalSpend: totalSpend,
+        transactionCount: filtered.length,
+        filteredTransactions: filtered,
+        allTransactions: allTransactions,
+        categories: categories,
+      );
+    });
   }
 
-  Future<void> _loadCategories(FinanceDatabase database) async {
-    if (_categories.isEmpty) {
-      _categories = await database.getAllCategories();
+  Future<void> _showFilterDialog() async {
+    if (_categories.isEmpty && _database != null) {
+      _categories = await _database!.getAllCategories();
     }
-  }
-
-  Future<void> _showFilterDialog(FinanceDatabase database) async {
-    await _loadCategories(database);
 
     if (!mounted) return;
 
@@ -145,24 +176,52 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     if (result != null) {
-      setState(() {
-        _filterSettings = result;
-        _selectedMonth = DateTime(result.startDate.year, result.startDate.month);
-      });
+      _filterSettings = result;
+      _selectedMonth = DateTime(result.startDate.year, result.startDate.month);
+      _refreshData();
       _monthSelectorKey.currentState?.scrollToMonth(_selectedMonth);
     }
   }
 
 
 
-  void _refreshSummary(FinanceDatabase database) {
-    _summaryFuture = _fetchSummary(database);
+  void _refreshData() {
+    if (_database == null) return;
+    final generation = ++_fetchGeneration;
+    _fetchData(generation).catchError((e) {
+      debugPrint('Failed to fetch data: $e');
+    });
+  }
+
+  Widget _buildChartCard({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.itemsBackground,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: AppColors.chartBorder.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.cardPadding),
+      child: child,
+    );
+  }
+
+  Widget _buildLoadingPlaceholder({double height = 300}) {
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final database = Provider.of<FinanceDatabase>(context);
-    _refreshSummary(database);
     return Scaffold(
       drawer: Drawer(
         backgroundColor: AppColors.itemsBackground,
@@ -202,7 +261,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         actions: [
           IconButton(
-            onPressed: () => _showFilterDialog(database),
+            onPressed: _showFilterDialog,
             icon: const Icon(
               Icons.filter_alt_rounded,
               color: AppColors.mainTextColor2,
@@ -222,6 +281,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   setState(() {
                     _isLoadingDatabase = false;
                   });
+                  _refreshData();
                 },
               );
             },
@@ -246,120 +306,55 @@ class _MyHomePageState extends State<MyHomePage> {
               onMonthSelected: _selectMonth,
             ),
             const SizedBox(height: AppSpacing.md),
-            SpendSummary(summaryFuture: _summaryFuture),
+            SpendSummary(data: _data),
             const SizedBox(height: AppSpacing.sectionGap),
-            // Line Chart Card
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.itemsBackground,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                border: Border.all(
-                  color: AppColors.chartBorder.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: _isLoadingDatabase
-                  ? SizedBox(
-                      height: 300,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text('Loading database...', style: AppTypography.bodySmall),
-                          ],
-                        ),
-                      ),
-                    )
+            _buildChartCard(
+              child: (_isLoadingDatabase || _data == null)
+                  ? _buildLoadingPlaceholder()
                   : TimeRangedSpendingLineGraph(
-                      database: database,
+                      transactions: _data!.allTransactions,
+                      categories: _data!.categories,
                       startDateTime: _filterSettings.startDate,
                       endDateTime: _filterSettings.endDate,
                       timeUnit: _filterSettings.timeUnit,
                       graphType: _filterSettings.lineGraphType,
                       showTotal: _filterSettings.showTotal,
                       selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                      transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
                       showSubcategories: _filterSettings.showSubcategories,
                     ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
-            // Pie Chart Card
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.itemsBackground,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                border: Border.all(
-                  color: AppColors.chartBorder.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: _isLoadingDatabase
-                  ? SizedBox(
-                      height: 300,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text('Loading database...', style: AppTypography.bodySmall),
-                          ],
-                        ),
-                      ),
-                    )
+            _buildChartCard(
+              child: (_isLoadingDatabase || _data == null)
+                  ? _buildLoadingPlaceholder()
                   : TimeRangedSpendingPieChart(
-                      database: database,
+                      transactions: _data!.allTransactions,
+                      categories: _data!.categories,
                       startDateTime: _filterSettings.startDate,
                       endDateTime: _filterSettings.endDate,
                       selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                      transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
                       showSubcategories: _filterSettings.showSubcategories,
                     ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.itemsBackground,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                border: Border.all(
-                  color: AppColors.chartBorder.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: _isLoadingDatabase
-                  ? SizedBox(
-                height: 300,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Loading database...', style: AppTypography.bodySmall),
-                    ],
-                  ),
-                ),
-              )
+            _buildChartCard(
+              child: (_isLoadingDatabase || _data == null)
+                  ? _buildLoadingPlaceholder()
                   : TimeRangedSpendingLineGraph(
-                database: database,
-                startDateTime: _filterSettings.startDate,
-                endDateTime: _filterSettings.endDate,
-                timeUnit: _filterSettings.timeUnit,
-                graphType: _filterSettings.lineGraphType,
-                showTotal: _filterSettings.showTotal,
-                selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
-                showSubcategories: _filterSettings.showSubcategories,
-                showTransactionCount: true
-              ),
+                      transactions: _data!.allTransactions,
+                      categories: _data!.categories,
+                      startDateTime: _filterSettings.startDate,
+                      endDateTime: _filterSettings.endDate,
+                      timeUnit: _filterSettings.timeUnit,
+                      graphType: _filterSettings.lineGraphType,
+                      showTotal: _filterSettings.showTotal,
+                      selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+                      showSubcategories: _filterSettings.showSubcategories,
+                      showTransactionCount: true,
+                    ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
-            TransactionList(summaryFuture: _summaryFuture),
+            TransactionList(data: _data),
           ],
         ),
         ),
