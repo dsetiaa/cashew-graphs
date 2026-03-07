@@ -3,7 +3,6 @@ import 'package:cashew_graphs/graphs/pie_charts/general_pie_chart.dart';
 import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
 import 'package:cashew_graphs/presentation/resources/app_typography.dart';
-import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cashew_graphs/logic/helpers.dart';
@@ -116,28 +115,27 @@ List<CategoryWithTotalAndSubs> _computePieSlices(({
 
 class TimeRangedSpendingPieChart extends StatefulWidget{
   const TimeRangedSpendingPieChart({
-    required this.database,
+    required this.transactions,
+    required this.categories,
     required this.startDateTime,
     required this.endDateTime,
-    required this.transactionNameFilter,
     this.selectedCategoriesPks,
     this.showSubcategories = true,
     super.key
   });
 
-  final FinanceDatabase database;
+  final List<TransactionWithCategory> transactions;
+  final List<TransactionCategory> categories;
   final DateTime startDateTime;
   final DateTime endDateTime;
   /// null = all categories, empty = none, non-empty = specific categories
   final Set<String>? selectedCategoriesPks;
-  final String transactionNameFilter;
   final bool showSubcategories;
   @override
   State<TimeRangedSpendingPieChart> createState() => _TimeRangedSpendingPieChartState();
 }
 
 class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart> {
-
 
   late Future<List<CategoryWithTotalAndSubs>> _pieChartDataFuture;
 
@@ -150,47 +148,28 @@ class _TimeRangedSpendingPieChartState extends State<TimeRangedSpendingPieChart>
   @override
   void didUpdateWidget(TimeRangedSpendingPieChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Check if any parameters changed that require reloading data
-    if (oldWidget.database != widget.database ||
+    if (oldWidget.transactions != widget.transactions ||
+        oldWidget.categories != widget.categories ||
         oldWidget.startDateTime != widget.startDateTime ||
         oldWidget.endDateTime != widget.endDateTime ||
-        oldWidget.selectedCategoriesPks != widget.selectedCategoriesPks ||
-        oldWidget.transactionNameFilter != widget.transactionNameFilter) {
+        oldWidget.selectedCategoriesPks != widget.selectedCategoriesPks) {
       _loadData();
     }
   }
 
   void _loadData() {
     setState(() {
-      _pieChartDataFuture = _fetchDataAndProcessPieChartData();
+      _pieChartDataFuture = _processPieChartData();
     });
   }
 
-  Future<List<CategoryWithTotalAndSubs>> _fetchDataAndProcessPieChartData() async {
-    // Fetch data from database
-    final nameFilter = widget.transactionNameFilter;
-    final results = await Future.wait([
-      widget.database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
-              (t) {
-                var filter = t.dateCreated.isBetweenValues(widget.startDateTime, widget.endDateTime);
-                if (nameFilter.isNotEmpty) {
-                  filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
-                }
-                return filter;
-              }
-      ),
-      widget.database.getAllCategories(),
-    ]);
-
-    final transactionsWithCategory = results[0] as List<TransactionWithCategory>;
-    final categories = results[1] as List<TransactionCategory>;
-
+  Future<List<CategoryWithTotalAndSubs>> _processPieChartData() async {
     return await compute(_computePieSlices, (
-    transactionsWithCategory: transactionsWithCategory,
-    categories: categories,
-    startDateTime: widget.startDateTime,
-    endDateTime: widget.endDateTime,
-    selectedCategoriesPks: widget.selectedCategoriesPks,
+      transactionsWithCategory: widget.transactions,
+      categories: widget.categories,
+      startDateTime: widget.startDateTime,
+      endDateTime: widget.endDateTime,
+      selectedCategoriesPks: widget.selectedCategoriesPks,
     ));
   }
 

@@ -150,6 +150,7 @@ class _GeneralPieChartState extends State<GeneralPieChart> {
                             sections: _buildOuterSections(flattenedSubs),
                             startDegreeOffset: -90,
                           ),
+                          duration: Duration.zero,
                         ),
                       ),
                     // Inner ring (main categories)
@@ -163,6 +164,7 @@ class _GeneralPieChartState extends State<GeneralPieChart> {
                           sections: _buildInnerSections(),
                           startDegreeOffset: -90,
                         ),
+                        duration: Duration.zero,
                       ),
                     ),
                     // Center content

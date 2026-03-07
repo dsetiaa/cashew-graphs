@@ -8,9 +8,11 @@ import 'package:cashew_graphs/presentation/resources/app_colours.dart';
 import 'package:cashew_graphs/presentation/resources/app_spacing.dart';
 import 'package:cashew_graphs/presentation/resources/app_typography.dart';
 import 'package:cashew_graphs/presentation/widgets/filter_dialog.dart';
+import 'package:cashew_graphs/presentation/widgets/month_selector.dart';
+import 'package:cashew_graphs/presentation/widgets/spend_summary.dart';
+import 'package:cashew_graphs/presentation/widgets/transaction_list.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'graphs/line_graphs/spending_line_graph.dart';
@@ -32,10 +34,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Spending Analytics',
+      title: 'CashFlew',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const MyHomePage(title: 'Spending Analytics'),
+      home: const MyHomePage(title: 'CashFlew💸'),
     );
   }
 }
@@ -62,96 +64,77 @@ class _MyHomePageState extends State<MyHomePage> {
   late FilterSettings _filterSettings;
   List<TransactionCategory> _categories = [];
   bool _isLoadingDatabase = false;
-  Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>? _summaryFuture;
+  ({
+    double totalSpend,
+    int transactionCount,
+    List<TransactionWithCategory> filteredTransactions,
+    List<TransactionWithCategory> allTransactions,
+    List<TransactionCategory> categories,
+  })? _data;
   late DateTime _selectedMonth;
-  late final ScrollController _monthScrollController;
+  final _monthSelectorKey = GlobalKey<MonthSelectorState>();
 
-  // Current month is the last item; index 0 is far in the past.
-  // We use a large enough count that users can't realistically scroll to the start.
-  static const _monthItemWidth = 72.0; // 68 width + 4 padding
-  late final DateTime _referenceMonth; // the current month, at the last index
-
-  int get _currentMonthIndex => _monthCount - 1;
-  static const _monthCount = 1200; // 100 years of history
-
-  DateTime _monthFromIndex(int index) {
-    final offset = index - _currentMonthIndex;
-    return DateTime(_referenceMonth.year, _referenceMonth.month + offset);
-  }
-
-  int _indexFromMonth(DateTime month) {
-    return _currentMonthIndex +
-        (month.year - _referenceMonth.year) * 12 +
-        (month.month - _referenceMonth.month);
-  }
+  FinanceDatabase? _database;
+  int _fetchGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _referenceMonth = DateTime(now.year, now.month);
-    _selectedMonth = _referenceMonth;
+    _selectedMonth = DateTime(now.year, now.month);
     final defaultDateRange = getDefaultDateRange();
     _filterSettings = FilterSettings(
       startDate: defaultDateRange.start,
       endDate: defaultDateRange.end,
       showTotal: true,
     );
-    // Set initial scroll offset so the selected month is centered
-    final initialOffset = _currentMonthIndex * _monthItemWidth;
-    _monthScrollController = ScrollController(initialScrollOffset: initialOffset);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedMonth(animate: false));
   }
 
   @override
-  void dispose() {
-    _monthScrollController.dispose();
-    super.dispose();
-  }
-
-  void _scrollToSelectedMonth({bool animate = true}) {
-    if (!_monthScrollController.hasClients) return;
-    final index = _indexFromMonth(_selectedMonth);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final offset = (index * _monthItemWidth - screenWidth / 2 + _monthItemWidth / 2)
-        .clamp(0.0, _monthScrollController.position.maxScrollExtent);
-    if (animate) {
-      _monthScrollController.animateTo(
-        offset,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    } else {
-      _monthScrollController.jumpTo(offset);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final database = Provider.of<FinanceDatabase>(context);
+    if (_database != database) {
+      _database = database;
+      _refreshData();
     }
   }
 
   void _selectMonth(DateTime month) {
     final now = DateTime.now();
     final isCurrentMonth = month.year == now.year && month.month == now.month;
-    setState(() {
-      _selectedMonth = month;
-      _filterSettings = _filterSettings.copyWith(
-        startDate: DateTime(month.year, month.month, 1),
-        endDate: isCurrentMonth
-            ? getDefaultEndDate()
-            : DateTime(month.year, month.month + 1, 1).subtract(const Duration(milliseconds: 1)),
-      );
-    });
-    _scrollToSelectedMonth();
+    _selectedMonth = month;
+    _filterSettings = _filterSettings.copyWith(
+      startDate: DateTime(month.year, month.month, 1),
+      endDate: isCurrentMonth
+          ? getDefaultEndDate()
+          : DateTime(month.year, month.month + 1, 1).subtract(const Duration(milliseconds: 1)),
+    );
+    _refreshData();
+    _monthSelectorKey.currentState?.scrollToMonth(_selectedMonth);
   }
 
-  Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})> _fetchSummary(FinanceDatabase database) async {
+  Future<void> _fetchData(int generation) async {
+    final database = _database!;
     final nameFilter = _filterSettings.transactionNameFilter.trim();
-    final allTransactions = await database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
-      (t) {
-        var filter = t.dateCreated.isBetweenValues(_filterSettings.startDate, _filterSettings.endDate);
-        if (nameFilter.isNotEmpty) {
-          filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
-        }
-        return filter;
-      },
-    );
+    final results = await Future.wait([
+      database.getAllTransactionsWithCategoryWalletBudgetObjectiveSubCategory(
+        (t) {
+          var filter = t.dateCreated.isBetweenValues(_filterSettings.startDate, _filterSettings.endDate);
+          if (nameFilter.isNotEmpty) {
+            filter = filter & t.name.lower().like('%${nameFilter.toLowerCase()}%');
+          }
+          return filter;
+        },
+      ),
+      database.getAllCategories(),
+    ]);
+
+    if (!mounted || generation != _fetchGeneration) return;
+
+    final allTransactions = results[0] as List<TransactionWithCategory>;
+    final categories = results[1] as List<TransactionCategory>;
+    _categories = categories;
 
     double totalSpend = 0;
     final filtered = <TransactionWithCategory>[];
@@ -166,20 +149,23 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
 
-    // Sort by date descending (newest first)
     filtered.sort((a, b) => b.transaction.dateCreated.compareTo(a.transaction.dateCreated));
 
-    return (totalSpend: totalSpend, transactionCount: filtered.length, transactions: filtered);
+    setState(() {
+      _data = (
+        totalSpend: totalSpend,
+        transactionCount: filtered.length,
+        filteredTransactions: filtered,
+        allTransactions: allTransactions,
+        categories: categories,
+      );
+    });
   }
 
-  Future<void> _loadCategories(FinanceDatabase database) async {
-    if (_categories.isEmpty) {
-      _categories = await database.getAllCategories();
+  Future<void> _showFilterDialog() async {
+    if (_categories.isEmpty && _database != null) {
+      _categories = await _database!.getAllCategories();
     }
-  }
-
-  Future<void> _showFilterDialog(FinanceDatabase database) async {
-    await _loadCategories(database);
 
     if (!mounted) return;
 
@@ -190,24 +176,54 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     if (result != null) {
-      setState(() {
-        _filterSettings = result;
-        _selectedMonth = DateTime(result.startDate.year, result.startDate.month);
-      });
-      _scrollToSelectedMonth();
+      _filterSettings = result;
+      _selectedMonth = DateTime(result.startDate.year, result.startDate.month);
+      _refreshData();
+      _monthSelectorKey.currentState?.scrollToMonth(_selectedMonth);
     }
   }
 
 
 
-  void _refreshSummary(FinanceDatabase database) {
-    _summaryFuture = _fetchSummary(database);
+  void _refreshData() {
+    if (_database == null) return;
+    final generation = ++_fetchGeneration;
+    _fetchData(generation).catchError((e) {
+      debugPrint('Failed to fetch data: $e');
+    });
+  }
+
+  Widget _buildChartCard({required Widget child}) {
+    return RepaintBoundary(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.itemsBackground,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(
+            color: AppColors.chartBorder.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.cardPadding),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildLoadingPlaceholder({double height = 300}) {
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final database = Provider.of<FinanceDatabase>(context);
-    _refreshSummary(database);
     return Scaffold(
       drawer: Drawer(
         backgroundColor: AppColors.itemsBackground,
@@ -217,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: Text('Spending Analytics', style: AppTypography.titleMedium),
+                child: Text('CashFlew💸', style: AppTypography.titleMedium),
               ),
               const Divider(color: AppColors.chartBorder, height: 1),
               ListTile(
@@ -247,7 +263,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         actions: [
           IconButton(
-            onPressed: () => _showFilterDialog(database),
+            onPressed: _showFilterDialog,
             icon: const Icon(
               Icons.filter_alt_rounded,
               color: AppColors.mainTextColor2,
@@ -267,6 +283,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   setState(() {
                     _isLoadingDatabase = false;
                   });
+                  _refreshData();
                 },
               );
             },
@@ -285,364 +302,61 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Month Picker
-            SizedBox(
-              height: 40,
-              child: ListView.builder(
-                controller: _monthScrollController,
-                scrollDirection: Axis.horizontal,
-                itemCount: _monthCount,
-                itemExtent: _monthItemWidth,
-                itemBuilder: (context, index) {
-                  final month = _monthFromIndex(index);
-                  final isSelected = month.year == _selectedMonth.year &&
-                      month.month == _selectedMonth.month;
-                  final isCurrentMonth = index == _currentMonthIndex;
-                  final label = isCurrentMonth
-                      ? 'Now'
-                      : (month.year == _referenceMonth.year
-                          ? DateFormat('MMM').format(month)
-                          : DateFormat('MMM yy').format(month));
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: GestureDetector(
-                      onTap: () => _selectMonth(month),
-                      child: Container(
-                        width: 68,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : AppColors.itemsBackground,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                          border: Border.all(
-                            color: isSelected ? AppColors.primary : AppColors.chartBorder.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: AppTypography.labelMedium.copyWith(
-                            color: isSelected
-                                ? AppColors.contentColorBlack
-                                : AppColors.mainTextColor2,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            MonthSelector(
+              key: _monthSelectorKey,
+              selectedMonth: _selectedMonth,
+              onMonthSelected: _selectMonth,
             ),
             const SizedBox(height: AppSpacing.md),
-            // Summary Box
-            FutureBuilder<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>(
-              future: _summaryFuture,
-              builder: (context, snapshot) {
-                final totalSpend = snapshot.data?.totalSpend;
-                final transactionCount = snapshot.data?.transactionCount;
-                final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
-
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.itemsBackground,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                    border: Border.all(
-                      color: AppColors.chartBorder.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.cardPadding,
-                    vertical: AppSpacing.md,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text('Total Spend', style: AppTypography.labelMedium),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              totalSpend != null
-                                  ? currencyFormat.format(totalSpend)
-                                  : '—',
-                              style: AppTypography.titleLarge,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: AppColors.chartBorder.withValues(alpha: 0.3),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text('Transactions', style: AppTypography.labelMedium),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              transactionCount != null
-                                  ? NumberFormat('#,###').format(transactionCount)
-                                  : '—',
-                              style: AppTypography.titleLarge,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+            SpendSummary(data: _data),
             const SizedBox(height: AppSpacing.sectionGap),
-            // Line Chart Card
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.itemsBackground,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                border: Border.all(
-                  color: AppColors.chartBorder.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: _isLoadingDatabase
-                  ? SizedBox(
-                      height: 300,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text('Loading database...', style: AppTypography.bodySmall),
-                          ],
-                        ),
-                      ),
-                    )
+            _buildChartCard(
+              child: (_isLoadingDatabase || _data == null)
+                  ? _buildLoadingPlaceholder()
                   : TimeRangedSpendingLineGraph(
-                      database: database,
+                      transactions: _data!.allTransactions,
+                      categories: _data!.categories,
                       startDateTime: _filterSettings.startDate,
                       endDateTime: _filterSettings.endDate,
                       timeUnit: _filterSettings.timeUnit,
                       graphType: _filterSettings.lineGraphType,
                       showTotal: _filterSettings.showTotal,
                       selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                      transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
                       showSubcategories: _filterSettings.showSubcategories,
                     ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
-            // Pie Chart Card
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.itemsBackground,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                border: Border.all(
-                  color: AppColors.chartBorder.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: _isLoadingDatabase
-                  ? SizedBox(
-                      height: 300,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text('Loading database...', style: AppTypography.bodySmall),
-                          ],
-                        ),
-                      ),
-                    )
+            _buildChartCard(
+              child: (_isLoadingDatabase || _data == null)
+                  ? _buildLoadingPlaceholder()
                   : TimeRangedSpendingPieChart(
-                      database: database,
+                      transactions: _data!.allTransactions,
+                      categories: _data!.categories,
                       startDateTime: _filterSettings.startDate,
                       endDateTime: _filterSettings.endDate,
                       selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                      transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
                       showSubcategories: _filterSettings.showSubcategories,
                     ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.itemsBackground,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                border: Border.all(
-                  color: AppColors.chartBorder.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(AppSpacing.cardPadding),
-              child: _isLoadingDatabase
-                  ? SizedBox(
-                height: 300,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Loading database...', style: AppTypography.bodySmall),
-                    ],
-                  ),
-                ),
-              )
+            _buildChartCard(
+              child: (_isLoadingDatabase || _data == null)
+                  ? _buildLoadingPlaceholder()
                   : TimeRangedSpendingLineGraph(
-                database: database,
-                startDateTime: _filterSettings.startDate,
-                endDateTime: _filterSettings.endDate,
-                timeUnit: _filterSettings.timeUnit,
-                graphType: _filterSettings.lineGraphType,
-                showTotal: _filterSettings.showTotal,
-                selectedCategoriesPks: _filterSettings.selectedCategoryPks,
-                transactionNameFilter: _filterSettings.transactionNameFilter.trim(),
-                showSubcategories: _filterSettings.showSubcategories,
-                showTransactionCount: true
-              ),
+                      transactions: _data!.allTransactions,
+                      categories: _data!.categories,
+                      startDateTime: _filterSettings.startDate,
+                      endDateTime: _filterSettings.endDate,
+                      timeUnit: _filterSettings.timeUnit,
+                      graphType: _filterSettings.lineGraphType,
+                      showTotal: _filterSettings.showTotal,
+                      selectedCategoriesPks: _filterSettings.selectedCategoryPks,
+                      showSubcategories: _filterSettings.showSubcategories,
+                      showTransactionCount: true,
+                    ),
             ),
             const SizedBox(height: AppSpacing.sectionGap),
-            // Transaction List
-            FutureBuilder<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>(
-              future: _summaryFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.itemsBackground,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                      border: Border.all(
-                        color: AppColors.chartBorder.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(AppSpacing.cardPadding),
-                    height: 200,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                      ),
-                    ),
-                  );
-                }
-
-                final transactions = snapshot.data?.transactions ?? [];
-                final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
-                final dateFormat = DateFormat('MMM d, yyyy');
-
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.itemsBackground,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                    border: Border.all(
-                      color: AppColors.chartBorder.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  padding: const EdgeInsets.all(AppSpacing.cardPadding),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Transactions', style: AppTypography.chartTitle),
-                      const SizedBox(height: AppSpacing.md),
-                      if (transactions.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                          child: Center(
-                            child: Text('No transactions found', style: AppTypography.bodyMedium),
-                          ),
-                        )
-                      else
-                        Builder(builder: (context) {
-                          // Build flat list: date headers interleaved with transactions
-                          final items = <Object>[]; // String = date header, TransactionWithCategory = row
-                          String? lastDate;
-                          for (final twc in transactions) {
-                            final dateStr = dateFormat.format(twc.transaction.dateCreated);
-                            if (dateStr != lastDate) {
-                              items.add(dateStr);
-                              lastDate = dateStr;
-                            }
-                            items.add(twc);
-                          }
-
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: items.length,
-                            itemBuilder: (context, index) {
-                              final item = items[index];
-                              if (item is String) {
-                                return Padding(
-                                  padding: EdgeInsets.only(
-                                    top: index == 0 ? 0 : AppSpacing.md,
-                                    bottom: AppSpacing.xs,
-                                  ),
-                                  child: Text(item, style: AppTypography.labelLarge),
-                                );
-                              }
-                              final twc = item as TransactionWithCategory;
-                              final t = twc.transaction;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.pageBackground.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.md,
-                                    vertical: AppSpacing.sm,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              t.name,
-                                              style: AppTypography.bodyLarge,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              '${twc.category.name}${twc.subCategory != null ? ' > ${twc.subCategory!.name}' : ''}',
-                                              style: AppTypography.bodySmall,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: AppSpacing.sm),
-                                      Text(
-                                        '${t.income ? '+' : '-'}${currencyFormat.format(t.amount.abs())}',
-                                        style: AppTypography.bodyLarge.copyWith(
-                                          color: t.income ? AppColors.contentColorGreen : AppColors.contentColorRed,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        }),
-                    ],
-                  ),
-                );
-              },
-            ),
+            TransactionList(data: _data),
           ],
         ),
         ),
