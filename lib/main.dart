@@ -64,15 +64,11 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _isLoadingDatabase = false;
   Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>? _summaryFuture;
   late DateTime _selectedMonth;
-  late final ScrollController _monthScrollController;
+  late final FixedExtentScrollController _monthWheelController;
 
-  // Current month is the last item; index 0 is far in the past.
-  // We use a large enough count that users can't realistically scroll to the start.
-  static const _monthItemWidth = 72.0; // 68 width + 4 padding
-  late final DateTime _referenceMonth; // the current month, at the last index
-
+  late final DateTime _referenceMonth;
   int get _currentMonthIndex => _monthCount - 1;
-  static const _monthCount = 1200; // 100 years of history
+  static const _monthCount = 1200;
 
   DateTime _monthFromIndex(int index) {
     final offset = index - _currentMonthIndex;
@@ -97,36 +93,31 @@ class _MyHomePageState extends State<MyHomePage> {
       endDate: defaultDateRange.end,
       showTotal: true,
     );
-    // Set initial scroll offset so the selected month is centered
-    final initialOffset = _currentMonthIndex * _monthItemWidth;
-    _monthScrollController = ScrollController(initialScrollOffset: initialOffset);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedMonth(animate: false));
+    _monthWheelController = FixedExtentScrollController(
+      initialItem: _currentMonthIndex,
+    );
   }
 
   @override
   void dispose() {
-    _monthScrollController.dispose();
+    _monthWheelController.dispose();
     super.dispose();
   }
 
   void _scrollToSelectedMonth({bool animate = true}) {
-    if (!_monthScrollController.hasClients) return;
     final index = _indexFromMonth(_selectedMonth);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final offset = (index * _monthItemWidth - screenWidth / 2 + _monthItemWidth / 2)
-        .clamp(0.0, _monthScrollController.position.maxScrollExtent);
     if (animate) {
-      _monthScrollController.animateTo(
-        offset,
+      _monthWheelController.animateToItem(
+        index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     } else {
-      _monthScrollController.jumpTo(offset);
+      _monthWheelController.jumpToItem(index);
     }
   }
 
-  void _selectMonth(DateTime month) {
+  void _applyMonth(DateTime month) {
     final now = DateTime.now();
     final isCurrentMonth = month.year == now.year && month.month == now.month;
     setState(() {
@@ -138,7 +129,6 @@ class _MyHomePageState extends State<MyHomePage> {
             : DateTime(month.year, month.month + 1, 1).subtract(const Duration(milliseconds: 1)),
       );
     });
-    _scrollToSelectedMonth();
   }
 
   Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})> _fetchSummary(FinanceDatabase database) async {
@@ -190,9 +180,10 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     if (result != null) {
+      final newMonth = DateTime(result.startDate.year, result.startDate.month);
       setState(() {
         _filterSettings = result;
-        _selectedMonth = DateTime(result.startDate.year, result.startDate.month);
+        _selectedMonth = newMonth;
       });
       _scrollToSelectedMonth();
     }
@@ -285,51 +276,46 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Month Picker
+            // Month Dial Picker
             SizedBox(
-              height: 40,
-              child: ListView.builder(
-                controller: _monthScrollController,
-                scrollDirection: Axis.horizontal,
-                itemCount: _monthCount,
-                itemExtent: _monthItemWidth,
-                itemBuilder: (context, index) {
-                  final month = _monthFromIndex(index);
-                  final isSelected = month.year == _selectedMonth.year &&
-                      month.month == _selectedMonth.month;
-                  final isCurrentMonth = index == _currentMonthIndex;
-                  final label = isCurrentMonth
-                      ? 'Now'
-                      : (month.year == _referenceMonth.year
-                          ? DateFormat('MMM').format(month)
-                          : DateFormat('MMM yy').format(month));
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: GestureDetector(
-                      onTap: () => _selectMonth(month),
-                      child: Container(
-                        width: 68,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : AppColors.itemsBackground,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                          border: Border.all(
-                            color: isSelected ? AppColors.primary : AppColors.chartBorder.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: AppTypography.labelMedium.copyWith(
+              height: 50,
+              child: RotatedBox(
+                quarterTurns: -1,
+                child: ListWheelScrollView.useDelegate(
+                  controller: _monthWheelController,
+                  itemExtent: 80,
+                  perspective: 0.003,
+                  diameterRatio: 1.6,
+                  physics: const FixedExtentScrollPhysics(),
+                  onSelectedItemChanged: (index) {
+                    _applyMonth(_monthFromIndex(index));
+                  },
+                  childDelegate: ListWheelChildBuilderDelegate(
+                    childCount: _monthCount,
+                    builder: (context, index) {
+                      final month = _monthFromIndex(index);
+                      final isSelected = month.year == _selectedMonth.year &&
+                          month.month == _selectedMonth.month;
+                      final isCurrentMonth = index == _currentMonthIndex;
+                      final label = isCurrentMonth
+                          ? 'Now'
+                          : DateFormat(month.year == _referenceMonth.year ? 'MMM' : 'MMM yy').format(month);
+                      return RotatedBox(
+                        quarterTurns: 1,
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: (isSelected ? AppTypography.titleMedium : AppTypography.labelLarge).copyWith(
                             color: isSelected
-                                ? AppColors.contentColorBlack
-                                : AppColors.mainTextColor2,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                ? AppColors.primary
+                                : AppColors.mainTextColor3,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                           ),
+                          child: Text(label),
                         ),
-                      ),
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
