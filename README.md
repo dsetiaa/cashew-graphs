@@ -1,6 +1,6 @@
 # CashFlew
 
-A Flutter app for visualizing personal finance data exported from [Cashew](https://github.com/jameskoko);. Import your Cashew database or a CSV file and get interactive spending charts and transaction breakdowns.
+A Flutter app for visualizing personal finance data exported from [Cashew](https://cashewapp.web.app/);. Import your Cashew database or a CSV file and get interactive spending charts and transaction breakdowns.
 
 ## Features
 

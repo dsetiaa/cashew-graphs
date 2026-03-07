@@ -277,13 +277,13 @@ class _MyHomePageState extends State<MyHomePage> {
                 onLoadingStart: () {
                   setState(() {
                     _isLoadingDatabase = true;
+                    _data = null;
                   });
                 },
                 onLoadingEnd: () {
                   setState(() {
                     _isLoadingDatabase = false;
                   });
-                  _refreshData();
                 },
               );
             },
