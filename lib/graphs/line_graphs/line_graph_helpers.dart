@@ -188,7 +188,8 @@ LineGraphData getGraphLinesLineLabelsAndMaxY({
     String lineLabel;
     bool showLine;
     if(categoryPk == Constants.SUM_OF_ALL_CATEGORIES_DUMMY_PK) {
-      lineColor = Colors.black;
+      lineColor = Color(0xffe0e0f8);
+      // lineColor = Colors.white;
       lineLabel = "TOTAL";
       showLine = showTotal;
     } else if (categoryPk.contains("-uncategorized")){
