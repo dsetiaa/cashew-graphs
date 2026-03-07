@@ -217,6 +217,24 @@ class _FilterDialogState extends State<FilterDialog> {
   bool _showCategoryError = false;
   List<FilterPreset> _presets = [];
 
+  bool get _hasChanges {
+    final initial = widget.initialSettings;
+    return _startDate != initial.startDate ||
+        _endDate != initial.endDate ||
+        _timeUnit != initial.timeUnit ||
+        _lineGraphType != initial.lineGraphType ||
+        _showSubcategories != initial.showSubcategories ||
+        _showTotal != initial.showTotal ||
+        _transactionNameController.text != initial.transactionNameFilter ||
+        !_categorySelectionsEqual(_selectedCategoryPks, initial.selectedCategoryPks);
+  }
+
+  bool _categorySelectionsEqual(Set<String>? a, Set<String>? b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    return a.length == b.length && a.containsAll(b);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -485,13 +503,28 @@ class _FilterDialogState extends State<FilterDialog> {
                       tooltip: 'Save as preset',
                       visualDensity: VisualDensity.compact,
                     ),
-                    TextButton(
-                      onPressed: _onApplyPressed,
-                      child: Text(
-                        'Apply',
-                        style: AppTypography.labelLarge.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        color: _hasChanges ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      ),
+                      child: TextButton(
+                        onPressed: _onApplyPressed,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                        ),
+                        child: Text(
+                          'Apply',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: _hasChanges
+                                ? AppColors.contentColorBlack
+                                : AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

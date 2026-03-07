@@ -63,16 +63,82 @@ class _MyHomePageState extends State<MyHomePage> {
   List<TransactionCategory> _categories = [];
   bool _isLoadingDatabase = false;
   Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>? _summaryFuture;
+  late DateTime _selectedMonth;
+  late final ScrollController _monthScrollController;
+
+  // Current month is the last item; index 0 is far in the past.
+  // We use a large enough count that users can't realistically scroll to the start.
+  static const _monthItemWidth = 72.0; // 68 width + 4 padding
+  late final DateTime _referenceMonth; // the current month, at the last index
+
+  int get _currentMonthIndex => _monthCount - 1;
+  static const _monthCount = 1200; // 100 years of history
+
+  DateTime _monthFromIndex(int index) {
+    final offset = index - _currentMonthIndex;
+    return DateTime(_referenceMonth.year, _referenceMonth.month + offset);
+  }
+
+  int _indexFromMonth(DateTime month) {
+    return _currentMonthIndex +
+        (month.year - _referenceMonth.year) * 12 +
+        (month.month - _referenceMonth.month);
+  }
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _referenceMonth = DateTime(now.year, now.month);
+    _selectedMonth = _referenceMonth;
     final defaultDateRange = getDefaultDateRange();
     _filterSettings = FilterSettings(
       startDate: defaultDateRange.start,
       endDate: defaultDateRange.end,
       showTotal: true,
     );
+    // Set initial scroll offset so the selected month is centered
+    final initialOffset = _currentMonthIndex * _monthItemWidth;
+    _monthScrollController = ScrollController(initialScrollOffset: initialOffset);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedMonth(animate: false));
+  }
+
+  @override
+  void dispose() {
+    _monthScrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToSelectedMonth({bool animate = true}) {
+    if (!_monthScrollController.hasClients) return;
+    final index = _indexFromMonth(_selectedMonth);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final offset = (index * _monthItemWidth - screenWidth / 2 + _monthItemWidth / 2)
+        .clamp(0.0, _monthScrollController.position.maxScrollExtent);
+    if (animate) {
+      _monthScrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _monthScrollController.jumpTo(offset);
+    }
+  }
+
+  void _selectMonth(DateTime month) {
+    final now = DateTime.now();
+    final isCurrentMonth = month.year == now.year && month.month == now.month;
+    setState(() {
+      _selectedMonth = month;
+      _filterSettings = _filterSettings.copyWith(
+        startDate: DateTime(month.year, month.month, 1),
+        endDate: isCurrentMonth
+            ? getDefaultEndDate()
+            : DateTime(month.year, month.month + 1, 1).subtract(const Duration(milliseconds: 1)),
+      );
+    });
+    _scrollToSelectedMonth();
   }
 
   Future<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})> _fetchSummary(FinanceDatabase database) async {
@@ -126,7 +192,9 @@ class _MyHomePageState extends State<MyHomePage> {
     if (result != null) {
       setState(() {
         _filterSettings = result;
+        _selectedMonth = DateTime(result.startDate.year, result.startDate.month);
       });
+      _scrollToSelectedMonth();
     }
   }
 
@@ -217,6 +285,54 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Month Picker
+            SizedBox(
+              height: 40,
+              child: ListView.builder(
+                controller: _monthScrollController,
+                scrollDirection: Axis.horizontal,
+                itemCount: _monthCount,
+                itemExtent: _monthItemWidth,
+                itemBuilder: (context, index) {
+                  final month = _monthFromIndex(index);
+                  final isSelected = month.year == _selectedMonth.year &&
+                      month.month == _selectedMonth.month;
+                  final isCurrentMonth = index == _currentMonthIndex;
+                  final label = isCurrentMonth
+                      ? 'Now'
+                      : (month.year == _referenceMonth.year
+                          ? DateFormat('MMM').format(month)
+                          : DateFormat('MMM yy').format(month));
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: GestureDetector(
+                      onTap: () => _selectMonth(month),
+                      child: Container(
+                        width: 68,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primary : AppColors.itemsBackground,
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                          border: Border.all(
+                            color: isSelected ? AppColors.primary : AppColors.chartBorder.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          label,
+                          style: AppTypography.labelMedium.copyWith(
+                            color: isSelected
+                                ? AppColors.contentColorBlack
+                                : AppColors.mainTextColor2,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
             // Summary Box
             FutureBuilder<({double totalSpend, int transactionCount, List<TransactionWithCategory> transactions})>(
               future: _summaryFuture,
